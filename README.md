@@ -1,3 +1,55 @@
-The Drone Imagery Intelligence Platform is a full-stack web-based application designed to transform raw aerial imagery captured by drones into meaningful and structured geospatial intelligence. The platform integrates drone image processing, Geographic Information System (GIS) technologies, computer vision, and cloud-based services to provide an end-to-end solution for aerial image analysis. It automatically extracts GPS and other metadata embedded within drone images, processes the imagery using AI-based object detection techniques, and associates the detected objects with their corresponding geographic coordinates. The resulting information is visualized through an interactive map interface, enabling users to explore surveyed regions and analyze detected objects spatially.
-The proposed platform aims to reduce the manual effort and time required to inspect and interpret large collections of aerial images. Users can upload drone imagery, organize images according to survey areas, perform automated object detection, visualize detection results on an interactive GIS map, and generate analytical reports containing key statistics and spatial information. The system follows a modular architecture consisting of a web-based frontend, backend services for image and metadata processing, an AI inference module for object detection, a geospatial database for storing location-based information, and cloud infrastructure for scalable storage and deployment.
-The platform can be applied to several domains, including agricultural monitoring, infrastructure inspection, disaster assessment, urban surveying, environmental monitoring, and land-use analysis. By combining artificial intelligence with geospatial visualization, the system provides a centralized and scalable approach for converting drone imagery into actionable information. The project demonstrates how computer vision, GIS, database technologies, and cloud computing can be integrated to develop an intelligent aerial imagery analysis system.
+Drone Imagery Intelligence Platform
+Project Overview
+
+Explain that this is a full-stack web application that processes drone imagery, extracts GPS metadata, performs AI-based object detection, visualizes results on an interactive GIS map, provides analytics, and generates survey reports.
+
+Features
+Drone image upload
+GPS/EXIF metadata extraction
+AI-based object detection
+Detection visualization
+Interactive GIS map
+Survey management
+Analytics dashboard
+Automated report generation
+Image analysis
+Object filtering
+Confidence-based filtering
+Technology Stack
+
+Clearly list all technologies actually used in this project.
+
+System Architecture
+
+Explain the flow:
+
+Drone Images
+→ Image Upload
+→ Metadata Extraction
+→ Image Processing
+→ AI Object Detection
+→ Geospatial Processing
+→ Database
+→ GIS Map
+→ Analytics
+→ Report Generation
+
+Project Structure
+
+Explain the purpose of the major folders.
+
+Installation
+
+Provide exact commands required to run the project locally.
+
+Environment Variables
+
+Document the variables required in .env without exposing any secret values.
+
+Running the Application
+
+Provide frontend and backend commands separately.
+
+API Documentation
+
+Document the available backend API endpoints.
