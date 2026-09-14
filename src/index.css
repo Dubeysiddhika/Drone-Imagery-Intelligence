@@ -1285,4 +1285,294 @@ a {
     grid-template-columns: 1fr;
   }
 }
+.survey-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #98a1af;
+  width: 280px;
+}
+
+.survey-search input {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  font-size: 11px;
+}
+
+.table-icon-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #667085;
+  font-size: 11px;
+}
+.gps-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-size: 8px;
+}
+.analysis-layout {
+  display: grid;
+  grid-template-columns: 1.6fr .7fr;
+  gap: 18px;
+}
+
+.analysis-image {
+  overflow: hidden;
+}
+
+.analysis-toolbar {
+  padding: 13px 18px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.analysis-toolbar span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #059669;
+}
+
+.drone-analysis {
+  height: 570px;
+  position: relative;
+  background:
+    linear-gradient(135deg,rgba(37,99,235,.1),rgba(6,182,212,.08)),
+    #cbd5df;
+  overflow: hidden;
+}
+
+.fake-building {
+  position: absolute;
+  width: 220px;
+  height: 150px;
+  left: 34%;
+  top: 27%;
+  background: #8c9aa7;
+  transform: rotate(-10deg);
+  box-shadow: 35px 20px 0 rgba(70,85,98,.2);
+}
+
+.bbox {
+  position: absolute;
+  border: 2px solid #2563eb;
+}
+
+.bbox span {
+  position: absolute;
+  top: -20px;
+  left: -2px;
+  background: #2563eb;
+  color: white;
+  font-size: 8px;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.bbox-one {
+  width: 110px;
+  height: 70px;
+  left: 20%;
+  top: 55%;
+}
+
+.bbox-two {
+  width: 45px;
+  height: 75px;
+  left: 62%;
+  top: 35%;
+  border-color: #06b6d4;
+}
+
+.bbox-two span {
+  background: #06b6d4;
+}
+
+.bbox-three {
+  width: 240px;
+  height: 170px;
+  left: 32%;
+  top: 25%;
+  border-color: #10b981;
+}
+
+.bbox-three span {
+  background: #10b981;
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 18px;
+}
+
+.report-card {
+  padding: 22px;
+}
+
+.report-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 13px;
+  margin-bottom: 18px;
+}
+
+.report-card h3 {
+  font-family: "Space Grotesk";
+  font-size: 14px;
+}
+
+.report-card > p {
+  color: #8a94a5;
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+.report-stats {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.report-stats span {
+  background: #f7f8fa;
+  border: 1px solid #edf0f3;
+  padding: 7px 9px;
+  border-radius: 7px;
+  color: #667085;
+  font-size: 9px;
+}
+
+.report-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.report-actions button {
+  flex: 1;
+  justify-content: center;
+}
+/* =========================
+   AUTH
+========================= */
+
+.auth-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(37,99,235,.2),transparent 30%),
+    radial-gradient(circle at 80% 70%,rgba(6,182,212,.12),transparent 30%),
+    #07101d;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.auth-card {
+  width: 420px;
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.25);
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 35px;
+}
+
+.auth-logo strong {
+  font-family: "Space Grotesk";
+  letter-spacing: 1px;
+}
+
+.auth-card h1 {
+  font-family: "Space Grotesk";
+  font-size: 28px;
+}
+
+.auth-card > p {
+  color: #7b8493;
+  font-size: 12px;
+  margin: 8px 0 25px;
+}
+
+.auth-input {
+  width: 100%;
+  height: 45px;
+  border: 1px solid #e1e6ed;
+  border-radius: 9px;
+  outline: none;
+  padding: 0 13px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.auth-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px #eff6ff;
+}
+
+.auth-button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 7px;
+}
+
+.auth-footer {
+  text-align: center;
+  color: #8a94a5;
+  font-size: 11px;
+  margin-top: 22px;
+}
+
+.auth-footer a {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.settings-card {
+  max-width: 650px;
+  padding: 25px;
+}
+
+.settings-card h3 {
+  font-family: "Space Grotesk";
+  margin-bottom: 25px;
+}
+
+.settings-card label {
+  display: block;
+  color: #667085;
+  font-size: 10px;
+  margin: 15px 0 6px;
+}
+
+.settings-card input {
+  width: 100%;
+  border: 1px solid var(--border);
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  background: #f8fafc;
+}
+
+.settings-card button {
+  margin-top: 22px;
+}
 }
