@@ -1,1 +1,8 @@
 node_modules
+
+# Local datasets and generated training outputs
+dataset/images/
+dataset/labels/
+runs/
+training/*.pt
+training/__pycache__/
