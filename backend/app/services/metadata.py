@@ -14,18 +14,10 @@ def convert_to_degrees(value):
     minutes = float(value[1])
     seconds = float(value[2])
 
-    return (
-        degrees
-        + minutes / 60
-        + seconds / 3600
-    )
+    return degrees + minutes / 60 + seconds / 3600
 
 
 def extract_metadata(filepath):
-    """
-    Extract GPS and timestamp information
-    from an image's EXIF metadata.
-    """
 
     metadata = {
         "latitude": None,
@@ -47,9 +39,11 @@ def extract_metadata(filepath):
 
         for key, value in exif.items():
 
-            decoded[
-                TAGS.get(key, key)
-            ] = value
+            decoded[TAGS.get(key, key)] = value
+
+        # -----------------------------
+        # GPS INFORMATION
+        # -----------------------------
 
         gps_info = decoded.get("GPSInfo")
 
@@ -59,15 +53,10 @@ def extract_metadata(filepath):
 
             for key, value in gps_info.items():
 
-                gps[
-                    GPSTAGS.get(key, key)
-                ] = value
+                gps[GPSTAGS.get(key, key)] = value
 
-            # Latitude and longitude
-            if (
-                "GPSLatitude" in gps
-                and "GPSLongitude" in gps
-            ):
+            # Latitude and Longitude
+            if "GPSLatitude" in gps and "GPSLongitude" in gps:
 
                 latitude = convert_to_degrees(
                     gps["GPSLatitude"]
@@ -77,18 +66,12 @@ def extract_metadata(filepath):
                     gps["GPSLongitude"]
                 )
 
-                # Southern hemisphere
-                if gps.get(
-                    "GPSLatitudeRef"
-                ) == "S":
-
+                # South latitude
+                if gps.get("GPSLatitudeRef") == "S":
                     latitude = -latitude
 
-                # Western hemisphere
-                if gps.get(
-                    "GPSLongitudeRef"
-                ) == "W":
-
+                # West longitude
+                if gps.get("GPSLongitudeRef") == "W":
                     longitude = -longitude
 
                 metadata["latitude"] = latitude
@@ -97,16 +80,20 @@ def extract_metadata(filepath):
             # Altitude
             if "GPSAltitude" in gps:
 
-                altitude = gps["GPSAltitude"]
-
                 try:
-                    metadata["altitude"] = (
-                        float(altitude)
+
+                    metadata["altitude"] = float(
+                        gps["GPSAltitude"]
                     )
+
                 except (TypeError, ValueError):
+
                     pass
 
-        # Capture time
+        # -----------------------------
+        # CAPTURE DATE/TIME
+        # -----------------------------
+
         date_string = decoded.get(
             "DateTimeOriginal"
         )
@@ -115,14 +102,13 @@ def extract_metadata(filepath):
 
             try:
 
-                metadata["captured_at"] = (
-                    datetime.strptime(
-                        date_string,
-                        "%Y:%m:%d %H:%M:%S"
-                    )
+                metadata["captured_at"] = datetime.strptime(
+                    date_string,
+                    "%Y:%m:%d %H:%M:%S"
                 )
 
             except (ValueError, TypeError):
+
                 pass
 
     except Exception as error:
