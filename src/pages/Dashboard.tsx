@@ -1,108 +1,118 @@
-import { Plus, Search, MapPin, CalendarDays, Image, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  Activity,
+  CarFront,
+  Image as ImageIcon,
+  ScanSearch,
+  UserRound,
+} from "lucide-react";
+
+import ImageDetectionWorkbench from "../components/dashboard/ImageDetectionWorkbench";
+import {
+  getApiErrorMessage,
+  getWorkspaceSummary,
+  checkBackendHealth,
+  type WorkspaceSummary,
+} from "../services/api";
 
 export default function Dashboard() {
-  const [surveys] = useState([
-    {
-      id: 1,
-      name: "Urban Development Survey",
-      date: "2024-01-15",
-      location: "Downtown District",
-      images: 245,
-      status: "Processed",
-    },
-    {
-      id: 2,
-      name: "Agricultural Assessment",
-      date: "2024-01-10",
-      location: "North Valley",
-      images: 892,
-      status: "Processing",
-    },
-    {
-      id: 3,
-      name: "Coastal Erosion Study",
-      date: "2024-01-08",
-      location: "Pacific Coast",
-      images: 156,
-      status: "Pending",
-    },
-  ]);
+  const [summary, setSummary] = useState<WorkspaceSummary | null>(null);
+  const [summaryError, setSummaryError] = useState("");
+  const [backendStatus, setBackendStatus] = useState<
+    "checking" | "online" | "offline"
+  >("checking");
 
-  const stats = [
-    { label: "Total Surveys", value: "12", trend: "+2" },
-    { label: "Images Processed", value: "3.2K", trend: "+240" },
-    { label: "Analysis Complete", value: "89%", trend: "+5%" },
-    { label: "Active Projects", value: "4", trend: "+1" },
-  ];
+  const refreshSummary = async () => {
+    try {
+      const nextSummary = await getWorkspaceSummary();
+      setSummary(nextSummary);
+      setSummaryError("");
+    } catch (error) {
+      setSummaryError(getApiErrorMessage(error));
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const refreshBackendStatus = async () => {
+      try {
+        const online = await checkBackendHealth();
+        if (active) setBackendStatus(online ? "online" : "offline");
+      } catch {
+        if (active) setBackendStatus("offline");
+      }
+    };
+
+    void refreshBackendStatus();
+    const intervalId = window.setInterval(() => {
+      void refreshBackendStatus();
+    }, 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    void refreshSummary();
+  }, []);
+
+  const cards = [
+    { label: "Total Images", value: summary?.totalImages, icon: ImageIcon, tone: "blue" },
+    { label: "Total Detections", value: summary?.totalDetections, icon: ScanSearch, tone: "cyan" },
+    { label: "Persons Detected", value: summary?.persons, icon: UserRound, tone: "green" },
+    { label: "Vehicles Detected", value: summary?.vehicles, icon: CarFront, tone: "orange" },
+  ] as const;
 
   return (
-    <div className="page-content">
-      <div className="page-header">
+    <div className="intelligence-dashboard">
+      <header className="dashboard-heading">
         <div>
-          <h1>Dashboard</h1>
-          <p>Welcome back! Here's your intelligence overview.</p>
+          <p className="dashboard-eyebrow">AERIAL IMAGERY / LIVE WORKSPACE</p>
+          <h1>Drone Imagery Intelligence</h1>
+          <p>Upload a survey image, run object detection, and review the measured results.</p>
         </div>
-        <button className="primary-button">
-          <Plus size={18} /> New Survey
-        </button>
-      </div>
+        <div className={`backend-indicator backend-${backendStatus}`} role="status">
+          <span className="backend-indicator-dot" />
+          <span>
+            {backendStatus === "checking"
+              ? "Checking backend"
+              : backendStatus === "online"
+                ? "Backend online"
+                : "Backend unavailable"}
+          </span>
+          <Activity size={16} aria-hidden="true" />
+        </div>
+      </header>
 
-      <div className="stats-grid">
-        {stats.map((stat, i) => (
-          <div key={i} className="stat-card">
-            <div className="stat-label">{stat.label}</div>
-            <div className="stat-value">{stat.value}</div>
-            <div className="stat-trend">
-              <TrendingUp size={14} /> {stat.trend}
+      <section className="live-summary" aria-label="Workspace summary">
+        {cards.map(({ label, value, icon: Icon, tone }) => (
+          <article className="live-stat" key={label}>
+            <span className={`live-stat-icon tone-${tone}`}><Icon size={18} /></span>
+            <div className="live-stat-copy">
+              <span className="live-stat-label">{label}</span>
+              <strong>{value === undefined ? "—" : value.toLocaleString()}</strong>
             </div>
-          </div>
+          </article>
         ))}
-      </div>
+        <article className="live-stat average-confidence-stat">
+          <span className="live-stat-icon tone-violet"><Activity size={18} /></span>
+          <div className="live-stat-copy">
+            <span className="live-stat-label">Average Confidence</span>
+            <strong>
+              {summary
+                ? `${(summary.averageConfidence * 100).toFixed(2)}%`
+                : "—"}
+            </strong>
+          </div>
+        </article>
+      </section>
 
-      <div className="section">
-        <div className="section-header">
-          <h2>Recent Surveys</h2>
-          <input
-            type="text"
-            placeholder="Search surveys..."
-            className="search-input"
-          />
-        </div>
+      {summaryError && (
+        <div className="dashboard-inline-error" role="alert">{summaryError}</div>
+      )}
 
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Survey Name</th>
-                <th>Date</th>
-                <th>Location</th>
-                <th>Images</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {surveys.map((survey) => (
-                <tr key={survey.id}>
-                  <td className="survey-name">{survey.name}</td>
-                  <td>{survey.date}</td>
-                  <td>
-                    <MapPin size={14} /> {survey.location}
-                  </td>
-                  <td>
-                    <Image size={14} /> {survey.images}
-                  </td>
-                  <td>
-                    <span className={`badge badge-${survey.status.toLowerCase()}`}>
-                      {survey.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ImageDetectionWorkbench onDetectionComplete={refreshSummary} />
     </div>
   );
 }

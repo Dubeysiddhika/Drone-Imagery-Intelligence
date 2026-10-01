@@ -24,6 +24,28 @@ from ..services.metadata import (
 router = APIRouter()
 
 
+def _image_response(image: DroneImage, metadata=None):
+    if metadata is None:
+        metadata = extract_metadata(image.filepath)
+
+    return {
+        "image_id": image.id,
+        "id": image.id,
+        "filename": image.filename,
+        "latitude": image.latitude,
+        "longitude": image.longitude,
+        "altitude": image.altitude,
+        "capture_time": image.captured_at,
+        "captured_at": image.captured_at,
+        "uploaded_at": image.uploaded_at,
+        "camera_make": metadata["camera_make"],
+        "camera_model": metadata["camera_model"],
+        "width": metadata["width"],
+        "height": metadata["height"],
+        "exif_available": metadata["exif_available"],
+    }
+
+
 # --------------------------------------------------
 # Upload directory
 # --------------------------------------------------
@@ -161,29 +183,7 @@ async def upload_image(
         "message":
             "Image uploaded successfully",
 
-        "image": {
-
-            "id":
-                image.id,
-
-            "filename":
-                image.filename,
-
-            "latitude":
-                image.latitude,
-
-            "longitude":
-                image.longitude,
-
-            "altitude":
-                image.altitude,
-
-            "captured_at":
-                image.captured_at,
-
-            "uploaded_at":
-                image.uploaded_at
-        }
+        "image": _image_response(image, metadata)
     }
 
 
@@ -234,4 +234,4 @@ def get_image(
         )
 
 
-    return image
+    return _image_response(image)

@@ -1,12 +1,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models.database import Base, engine
+from .models.database import (
+    Base,
+    engine,
+    ensure_detection_columns,
+    ensure_image_location_column,
+    verify_postgis,
+)
 from .routes import images, surveys, analysis, dashboard
 
 
 # Create database tables
+if engine.dialect.name == "postgresql":
+    verify_postgis(engine)
 Base.metadata.create_all(bind=engine)
+ensure_detection_columns(engine)
+ensure_image_location_column(engine)
 
 app = FastAPI(
     title="Drone Imagery Intelligence API",
@@ -39,6 +49,7 @@ def root():
 
 # Health check
 @app.get("/api/health")
+@app.get("/health")
 def health():
     return {
         "status": "healthy"

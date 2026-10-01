@@ -127,20 +127,6 @@ function Sidebar() {
           {!collapsed && <span>Settings</span>}
         </a>
 
-        {!collapsed && (
-          <div className="storage-card">
-            <div className="storage-header">
-              <span>Storage</span>
-              <span>68%</span>
-            </div>
-
-            <div className="progress">
-              <div style={{ width: "68%" }} />
-            </div>
-
-            <p>6.8 GB of 10 GB used</p>
-          </div>
-        )}
       </div>
     </aside>
   );

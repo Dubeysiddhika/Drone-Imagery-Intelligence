@@ -10,9 +10,61 @@ from sqlalchemy import (
     Text
 )
 
+from sqlalchemy import event
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import TypeDecorator
+from geoalchemy2 import Geometry, WKTElement
 
 from .database import Base
+
+
+class PointGeometry(TypeDecorator):
+    """Use PostGIS geometry in PostgreSQL and plain WKT in SQLite tests."""
+
+    impl = String
+    cache_ok = True
+    geometry_type = "POINT"
+    srid = 4326
+    dimension = 2
+    spatial_index = True
+    use_typmod = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect is None:
+            return String()
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(
+                Geometry(geometry_type="POINT", srid=4326, spatial_index=True)
+            )
+        return dialect.type_descriptor(String())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if dialect.name == "postgresql" and isinstance(value, str):
+            return WKTElement(value.removeprefix("SRID=4326;"), srid=4326)
+        return value
+
+
+def _set_image_location(target) -> None:
+    latitude = target.latitude
+    longitude = target.longitude
+    if latitude is None or longitude is None:
+        target.location = None
+        return
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+    except (TypeError, ValueError, OverflowError):
+        target.location = None
+        return
+
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        target.location = None
+        return
+
+    target.location = f"SRID=4326;POINT({longitude} {latitude})"
 
 
 # ============================================================
@@ -91,6 +143,12 @@ class DroneImage(Base):
         nullable=True
     )
 
+    # Populated from valid latitude/longitude by the image persistence hooks.
+    location = Column(
+        PointGeometry(),
+        nullable=True
+    )
+
     # Drone altitude extracted from EXIF
     altitude = Column(
         Float,
@@ -152,6 +210,12 @@ class Detection(Base):
         nullable=False
     )
 
+    # Nullable for compatibility with existing rows created before class IDs.
+    class_id = Column(
+        Integer,
+        nullable=True
+    )
+
     # Object class detected by YOLO
     # Example: person, car, truck, bicycle
     class_name = Column(
@@ -164,6 +228,12 @@ class Detection(Base):
     confidence = Column(
         Float,
         nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=True
     )
 
     # Bounding box coordinates
@@ -192,3 +262,9 @@ class Detection(Base):
         "DroneImage",
         back_populates="detections"
     )
+
+
+@event.listens_for(DroneImage, "before_insert")
+@event.listens_for(DroneImage, "before_update")
+def _sync_image_location(mapper, connection, target) -> None:
+    _set_image_location(target)
