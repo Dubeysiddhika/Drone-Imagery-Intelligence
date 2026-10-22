@@ -20,10 +20,8 @@ from app.services.detector import PROJECT_ROOT
 
 
 TEST_IMAGE = (
-    PROJECT_ROOT
-    / "dataset"
-    / "images"
-    / "test"
+    Path(__file__).resolve().parent
+    / "fixtures"
     / "0000007_04999_d_0000036.jpg"
 )
 

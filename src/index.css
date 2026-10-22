@@ -866,15 +866,17 @@ a {
     flex-direction: column;
     gap: 15px;
   }
-  .select {
-  border: 1px solid var(--border);
-  background: white;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 10px;
-  color: #4b5563;
-  outline: none;
-}
+    .select {
+    border: 1px solid var(--border);
+    background: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 10px;
+    color: #4b5563;
+    outline: none;
+  }
+}  /* ADD THIS CLOSING BRACKET */
+
 /* =========================
    LANDING PAGE
 ========================= */
@@ -1575,7 +1577,7 @@ a {
 .settings-card button {
   margin-top: 22px;
 }
-}
+
 
 /* =========================
    LIVE IMAGERY WORKSPACE
@@ -2259,4 +2261,353 @@ a {
   .live-summary { grid-template-columns: minmax(0, 1fr); }
   .live-stat { padding: 12px; }
   .dashboard-heading h1 { font-size: 21px; }
+}
+/* UAV-VisLoc dataset page */
+.uav-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.uav-page-header,
+.uav-table-header,
+.uav-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.uav-page-header h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 28px;
+  margin: 7px 0;
+}
+
+.uav-refresh-button,
+.uav-view-button,
+.uav-close-button,
+.uav-pagination-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: white;
+  color: var(--text);
+  padding: 10px 13px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.uav-refresh-button:disabled,
+.uav-pagination-controls button:disabled,
+.uav-view-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.uav-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.uav-stat-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 19px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+}
+
+.uav-stat-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.uav-stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: #2563eb;
+  background: #eff6ff;
+  flex-shrink: 0;
+}
+
+.uav-icon-green {
+  color: #059669;
+  background: #ecfdf5;
+}
+
+.uav-icon-purple {
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.uav-icon-orange {
+  color: #d97706;
+  background: #fffbeb;
+}
+
+.uav-stat-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.uav-stat-card strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 25px;
+}
+
+.uav-stat-card small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.uav-data-panel,
+.uav-detail-panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.uav-table-header {
+  padding: 22px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.uav-table-header h2,
+.uav-detail-header h2 {
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.uav-table-header p,
+.uav-detail-header p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.uav-search {
+  width: min(320px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  background: #fff;
+}
+
+.uav-search input {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.uav-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.uav-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1000px;
+  text-align: left;
+}
+
+.uav-table th {
+  background: #f8fafc;
+  color: #64748b;
+  padding: 13px 16px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.uav-table td {
+  border-top: 1px solid #edf0f5;
+  padding: 15px 16px;
+  font-size: 12px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.uav-table tbody tr:hover {
+  background: #fafcff;
+}
+
+.uav-filename {
+  font-weight: 700;
+  color: #111827;
+}
+
+.uav-subpath {
+  color: #94a3b8;
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+.uav-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.uav-status {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.uav-status-complete {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.uav-status-partial {
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.uav-view-button {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #dbeafe;
+  padding: 7px 11px;
+}
+
+.uav-table-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.uav-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.uav-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.uav-pagination-controls button {
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.uav-detail-panel {
+  padding: 22px;
+}
+
+.uav-detail-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 17px;
+}
+
+.uav-close-button {
+  padding: 7px;
+}
+
+.uav-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding-top: 20px;
+}
+
+.uav-detail-grid dt {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.uav-detail-grid dd {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.uav-error,
+.uav-inline-error {
+  padding: 15px 17px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.uav-error p {
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+.uav-inline-error {
+  margin: 14px 22px;
+}
+
+@media (max-width: 1100px) {
+  .uav-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .uav-table-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .uav-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .uav-page-header {
+    flex-direction: column;
+  }
+
+  .uav-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .uav-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .uav-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .uav-pagination-controls {
+    flex-wrap: wrap;
+  }
 }

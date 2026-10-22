@@ -3,6 +3,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
+from app.services.detector import MODEL_PATH
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -16,10 +17,8 @@ from app.services.detector import PROJECT_ROOT
 
 
 TEST_IMAGE = (
-    PROJECT_ROOT
-    / "dataset"
-    / "images"
-    / "test"
+    Path(__file__).resolve().parent
+    / "fixtures"
     / "0000007_04999_d_0000036.jpg"
 )
 
@@ -132,6 +131,11 @@ class DetectionPersistenceTests(unittest.TestCase):
         self.assertEqual(
             retrieval.json()["detections"], second_body["detections"]
         )
+
+    @unittest.skipUnless(
+        MODEL_PATH.is_file(),
+        f"Trained YOLO weights unavailable: {MODEL_PATH}",
+    )
 
     def test_real_model_results_are_persisted(self):
         self.assertTrue(TEST_IMAGE.is_file(), f"Missing test image: {TEST_IMAGE}")

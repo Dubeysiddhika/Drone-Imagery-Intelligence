@@ -12,7 +12,9 @@ import {
   Bell,
   Search,
   ChevronDown,
+  Database,
 } from "lucide-react";
+
 import { useState } from "react";
 
 import Landing from "./pages/Landing";
@@ -26,7 +28,7 @@ import MapPage from "./pages/Map";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/Settings";
-
+import UAVVisLocPage from "./pages/UAVVisLoc";
 const navItems = [
   {
     name: "Dashboard",
@@ -63,6 +65,11 @@ const navItems = [
     path: "/reports",
     icon: FileText,
   },
+  {
+  name: "UAV-VisLoc Dataset",
+  path: "/uav-visloc",
+  icon: Database,
+},
 ];
 
 function Sidebar() {
@@ -253,6 +260,15 @@ export default function App() {
           </AppLayout>
         }
       />
+
+      <Route
+      path="/uav-visloc"
+      element={
+        <AppLayout>
+          <UAVVisLocPage />
+        </AppLayout>
+      }
+    />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

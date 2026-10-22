@@ -66,6 +66,35 @@ export interface WorkspaceSummary {
 	averageConfidence: number;
 }
 
+export interface UAVVisLocStats {
+  dataset: string;
+  total_records: number;
+  records_with_complete_orientation: number;
+  records_without_complete_orientation: number;
+}
+
+export interface UAVVisLocRecord {
+  id: number;
+  relative_path: string;
+  filename: string;
+  capture_time_raw: string | null;
+  latitude: number;
+  longitude: number;
+  height: number | null;
+  omega: number | null;
+  kappa: number | null;
+  phi1: number | null;
+  phi2: number | null;
+  metadata_csv: string;
+}
+
+export interface UAVVisLocRecordsResponse {
+  total: number;
+  skip: number;
+  limit: number;
+  records: UAVVisLocRecord[];
+}
+
 export async function checkBackendHealth(): Promise<boolean> {
 	const response = await api.get<HealthResponse>("/api/health");
 	return response.data.status === "healthy";
@@ -137,6 +166,33 @@ export async function getWorkspaceSummary(): Promise<WorkspaceSummary> {
 				detections.length
 			: 0,
 	};
+}
+
+export async function getUAVVisLocStats(): Promise<UAVVisLocStats> {
+  const response = await api.get<UAVVisLocStats>(
+    "/api/uav-visloc/stats",
+  );
+  return response.data;
+}
+
+export async function listUAVVisLocRecords(
+  skip = 0,
+  limit = 25,
+): Promise<UAVVisLocRecordsResponse> {
+  const response = await api.get<UAVVisLocRecordsResponse>(
+    "/api/uav-visloc/records",
+    { params: { skip, limit } },
+  );
+  return response.data;
+}
+
+export async function getUAVVisLocRecord(
+  recordId: number,
+): Promise<UAVVisLocRecord> {
+  const response = await api.get<UAVVisLocRecord>(
+    `/api/uav-visloc/records/${recordId}`,
+  );
+  return response.data;
 }
 
 export function getApiErrorMessage(error: unknown): string {

@@ -22,3 +22,6 @@ dataset/labels/
 runs/
 training/*.pt
 training/__pycache__/
+# Downloaded research datasets — keep locally, not in Git
+/dataset2/
+/dataset2_clean/

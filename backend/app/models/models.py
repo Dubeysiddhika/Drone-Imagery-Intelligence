@@ -264,6 +264,51 @@ class Detection(Base):
     )
 
 
+# ============================================================
+# UAV-VISLOC DATASET METADATA
+# ============================================================
+
+class UAVVisLocRecord(Base):
+    """Metadata for images in the UAV-VisLoc research dataset."""
+
+    __tablename__ = "uav_visloc_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Stable path relative to the UAV-VisLoc dataset directory.
+    # Unique paths make repeated imports safe.
+    relative_path = Column(
+        String(500),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    filename = Column(String(255), nullable=False)
+
+    # Preserve the original date string without losing source information.
+    capture_time_raw = Column(String(80), nullable=True)
+
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    height = Column(Float, nullable=True)
+
+    # Camera orientation; NULL when unavailable in the source CSV.
+    omega = Column(Float, nullable=True)
+    kappa = Column(Float, nullable=True)
+    phi1 = Column(Float, nullable=True)
+    phi2 = Column(Float, nullable=True)
+
+    # Source metadata file, useful for traceability.
+    metadata_csv = Column(String(255), nullable=False)
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+
 @event.listens_for(DroneImage, "before_insert")
 @event.listens_for(DroneImage, "before_update")
 def _sync_image_location(mapper, connection, target) -> None:

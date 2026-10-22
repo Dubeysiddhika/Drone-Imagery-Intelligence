@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .routes import images, surveys, analysis, dashboard, uav_visloc
 
 from .models.database import (
     Base,
@@ -8,7 +9,8 @@ from .models.database import (
     ensure_image_location_column,
     verify_postgis,
 )
-from .routes import images, surveys, analysis, dashboard
+from .routes import images, surveys, analysis, dashboard, uav_visloc
+
 
 
 # Create database tables
@@ -63,6 +65,7 @@ app.include_router(
 )
 
 
+
 app.include_router(
     surveys.router,
     prefix="/api/surveys",
@@ -81,4 +84,9 @@ app.include_router(
     dashboard.router,
     prefix="/api/dashboard",
     tags=["Dashboard"]
+)
+app.include_router(
+    uav_visloc.router,
+    prefix="/api/uav-visloc",
+    tags=["UAV-VisLoc Dataset"],
 )
