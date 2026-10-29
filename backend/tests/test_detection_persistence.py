@@ -14,6 +14,7 @@ from app.models.database import Base, get_db
 from app.models.models import Detection, DroneImage
 from app.routes import analysis
 from app.services.detector import PROJECT_ROOT
+from app.services.model_registry import get_model_metadata
 
 
 TEST_IMAGE = (
@@ -162,6 +163,8 @@ class DetectionPersistenceTests(unittest.TestCase):
                 self.assertGreaterEqual(row.confidence, 0.0)
                 self.assertLessEqual(row.confidence, 1.0)
                 self.assertIsNotNone(row.created_at)
+                self.assertEqual(row.model_version, "drone_person_vehicle")
+                self.assertEqual(row.model_name, "YOLO11n")
 
         retrieval = self.client.get(
             f"/api/analysis/detections/{self.image_id}"
@@ -170,6 +173,115 @@ class DetectionPersistenceTests(unittest.TestCase):
         self.assertEqual(
             retrieval.json()["detection_count"], body["detection_count"]
         )
+
+    def test_baseline_model_metadata_reports_supported_classes(self):
+        baseline = get_model_metadata("baseline")
+        self.assertEqual(baseline["model_name"], "YOLO11n")
+        self.assertEqual(baseline["model_version"], "drone_person_vehicle")
+        self.assertEqual(baseline["class_names"], ["person", "vehicle"])
+        self.assertEqual(baseline["class_count"], 2)
+
+    def test_ten_class_model_selection_persists_ten_class_detection(self):
+        model_results = [
+            {
+                "class_id": 7,
+                "class_name": "awning-tricycle",
+                "confidence": 0.88,
+                "x1": 10.0,
+                "y1": 20.0,
+                "x2": 70.0,
+                "y2": 90.0,
+            }
+        ]
+
+        with patch.object(analysis, "detect_objects", return_value=model_results) as detect:
+            response = self.client.post(
+                f"/api/analysis/detect/{self.image_id}"
+                "?model_version=visdrone10_yolo11n"
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        detect.assert_called_once_with(
+            Path(self.image.filepath),
+            model_version="visdrone10_yolo11n",
+        )
+        self.assertEqual(body["model_version"], "visdrone10_yolo11n")
+        self.assertEqual(
+            body["classes"],
+            [
+                "pedestrian",
+                "people",
+                "bicycle",
+                "car",
+                "van",
+                "truck",
+                "tricycle",
+                "awning-tricycle",
+                "bus",
+                "motor",
+            ],
+        )
+        self.assertEqual(body["coordinate_system"], "pixel_xyxy")
+        self.assertEqual(body["detections"][0]["class_id"], 7)
+        self.assertEqual(
+            body["detections"][0]["class_name"],
+            "awning-tricycle",
+        )
+        self.assertEqual(
+            body["detections"][0]["bbox"],
+            {"x1": 10.0, "y1": 20.0, "x2": 70.0, "y2": 90.0},
+        )
+
+        retrieval = self.client.get(
+            f"/api/analysis/detections/{self.image_id}"
+        )
+        self.assertEqual(retrieval.status_code, 200)
+        self.assertEqual(
+            retrieval.json()["model_version"],
+            "visdrone10_yolo11n",
+        )
+        self.assertEqual(retrieval.json()["coordinate_system"], "pixel_xyxy")
+
+    def test_unsupported_model_version_returns_bad_request(self):
+        response = self.client.post(
+            f"/api/analysis/detect/{self.image_id}?model_version=unknown"
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_confidence_threshold_filters_persisted_results(self):
+        model_results = [
+            {
+                "class_id": 1,
+                "class_name": "vehicle",
+                "confidence": 0.91,
+                "x1": 12.0,
+                "y1": 24.0,
+                "x2": 80.0,
+                "y2": 100.0,
+            },
+            {
+                "class_id": 0,
+                "class_name": "person",
+                "confidence": 0.63,
+                "x1": 30.0,
+                "y1": 40.0,
+                "x2": 50.0,
+                "y2": 90.0,
+            },
+        ]
+
+        with patch.object(analysis, "detect_objects", return_value=model_results):
+            response = self.client.post(f"/api/analysis/detect/{self.image_id}")
+
+        self.assertEqual(response.status_code, 200)
+        filtered = self.client.get(
+            f"/api/analysis/detections/{self.image_id}?min_confidence=0.8"
+        )
+        self.assertEqual(filtered.status_code, 200)
+        self.assertEqual(filtered.json()["detection_count"], 1)
+        self.assertEqual(filtered.json()["detections"][0]["class_name"], "vehicle")
 
 
 if __name__ == "__main__":

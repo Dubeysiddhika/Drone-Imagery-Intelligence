@@ -1,9 +1,7 @@
-path: ../dataset
-train: images/train
-val: images/val
-test: images/test
+train: ../dataset/images/train
+val: ../dataset/images/val
+test: ../dataset/images/test
 
 names:
   0: person
   1: vehicle
-  2: building

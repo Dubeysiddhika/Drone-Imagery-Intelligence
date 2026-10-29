@@ -1,8 +1,22 @@
 from pathlib import Path
 
-DATASET = Path("../dataset")
+import yaml
 
-CLASS_COUNT = 3
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATASET = PROJECT_ROOT / "dataset"
+
+
+def load_class_count():
+    data_path = DATASET / "data.yaml"
+    if not data_path.is_file():
+        return 2
+    with data_path.open("r", encoding="utf-8") as handle:
+        dataset = yaml.safe_load(handle) or {}
+    names = dataset.get("names", {})
+    return max(len(names), 2)
+
+
+CLASS_COUNT = load_class_count()
 
 
 def check_split(split):

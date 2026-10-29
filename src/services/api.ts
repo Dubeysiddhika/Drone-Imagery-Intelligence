@@ -1,7 +1,7 @@
 import axios, { type AxiosProgressEvent } from "axios";
 
 export const API_BASE_URL = (
-	import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8020"
+	import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
 const api = axios.create({
@@ -30,6 +30,8 @@ export interface Detection {
 	class_id: number;
 	class_name: string;
 	confidence: number;
+	model_name?: string;
+	model_version?: string;
 	bbox: {
 		x1: number;
 		y1: number;
@@ -40,9 +42,15 @@ export interface Detection {
 
 export interface DetectionResponse {
 	image_id: number;
+	model_name?: string;
+	model_version?: string;
+	classes?: string[];
+	coordinate_system?: "pixel_xyxy";
 	detection_count: number;
 	detections: Detection[];
 }
+
+export type DetectionModelVersion = "baseline" | "visdrone10_yolo11n";
 
 interface UploadResponse {
 	success: boolean;
@@ -127,9 +135,14 @@ export async function uploadImage(
 	return response.data.image;
 }
 
-export async function runDetection(imageId: number): Promise<DetectionResponse> {
+export async function runDetection(
+	imageId: number,
+	modelVersion: DetectionModelVersion = "baseline",
+): Promise<DetectionResponse> {
 	const response = await api.post<DetectionResponse>(
 		`/api/analysis/detect/${imageId}`,
+		undefined,
+		{ params: { model_version: modelVersion } },
 	);
 	return response.data;
 }

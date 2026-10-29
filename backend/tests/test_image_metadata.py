@@ -139,6 +139,22 @@ class ImageMetadataApiTests(unittest.TestCase):
         self.assertEqual(detail.json()["width"], 1360)
         self.assertIsNone(detail.json()["latitude"])
 
+    def test_upload_rejects_corrupt_image_without_storing_file(self):
+        response = self.client.post(
+            "/api/images/upload",
+            files={
+                "file": (
+                    "corrupt.jpg",
+                    b"not a valid image",
+                    "image/jpeg",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("corrupt", response.json()["detail"].lower())
+        self.assertEqual(list(self.upload_dir.iterdir()), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -230,6 +230,19 @@ class Detection(Base):
         nullable=False
     )
 
+    # Model metadata for auditability and traceability.
+    model_name = Column(
+        String(100),
+        nullable=True,
+        default="YOLO11n"
+    )
+
+    model_version = Column(
+        String(200),
+        nullable=True,
+        default="drone_person_vehicle"
+    )
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow,

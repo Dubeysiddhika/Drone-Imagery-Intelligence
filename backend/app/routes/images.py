@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db
 from ..models.models import DroneImage
+from ..services.detector import InvalidImageError, validate_image
 
 from ..services.metadata import (
     extract_metadata
@@ -136,6 +137,14 @@ async def upload_image(
             buffer
         )
 
+    try:
+        validate_image(destination)
+    except InvalidImageError as error:
+        destination.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
 
     # Extract metadata
     metadata = extract_metadata(

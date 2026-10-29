@@ -25,3 +25,9 @@ training/__pycache__/
 # Downloaded research datasets — keep locally, not in Git
 /dataset2/
 /dataset2_clean/
+
+# Original VisDrone source archives and extracted splits are large local data
+/dataset_visdrone10_source/*
+!/dataset_visdrone10_source/.gitkeep
+/dataset_visdrone10/
+/dataset_visdrone10_yolo/

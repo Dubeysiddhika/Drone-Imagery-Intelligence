@@ -8,11 +8,11 @@ import cv2
 # CONFIGURATION
 # ============================================================
 
-# Location of the extracted VisDrone dataset
-VISDRONE_ROOT = Path(r"D:\Download copy\archive")
-
 # Location of your project, based on this script's location
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Keep the extracted source dataset inside the project by default.
+VISDRONE_ROOT = PROJECT_ROOT / "dataset" / "raw"
 
 # Output YOLO dataset
 OUTPUT_ROOT = PROJECT_ROOT / "dataset"
@@ -507,9 +507,7 @@ def create_data_yaml():
 
     yaml_file = OUTPUT_ROOT / "data.yaml"
 
-    yaml_content = """path: D:/Drone-image-intelligence/dataset
-
-train: images/train
+    yaml_content = """train: images/train
 val: images/val
 test: images/test
 

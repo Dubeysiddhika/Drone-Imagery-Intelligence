@@ -5,6 +5,7 @@ import {
   Image as ImageIcon,
   LoaderCircle,
   MapPin,
+  Info,
   RefreshCw,
   ScanLine,
   Trash2,
@@ -16,12 +17,21 @@ import {
   runDetection,
   uploadImage,
   type Detection,
+  type DetectionModelVersion,
+  type DetectionResponse,
   type ImageMetadata,
 } from "../../services/api";
 
 type WorkflowPhase = "idle" | "uploading" | "detecting" | "complete" | "error";
 
 const supportedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".tif", ".tiff"]);
+const modelOptions: {
+  value: DetectionModelVersion;
+  label: string;
+}[] = [
+  { value: "baseline", label: "Baseline · Person / vehicle" },
+  { value: "visdrone10_yolo11n", label: "VisDrone · 10 classes (development)" },
+];
 
 function formatConfidence(confidence: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -40,8 +50,10 @@ function formatDateTime(value: string | null): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-function boxClass(className: string): string {
-  return className.toLowerCase() === "person" ? "detection-person" : "detection-vehicle";
+function boxClass(className: string, classId: number): string {
+  if (className.toLowerCase() === "person") return "detection-person";
+  if (className.toLowerCase() === "vehicle") return "detection-vehicle";
+  return `detection-class-${classId}`;
 }
 
 export default function ImageDetectionWorkbench({
@@ -54,11 +66,14 @@ export default function ImageDetectionWorkbench({
   const [previewUrl, setPreviewUrl] = useState("");
   const [metadata, setMetadata] = useState<ImageMetadata | null>(null);
   const [detections, setDetections] = useState<Detection[]>([]);
+  const [detectionResponse, setDetectionResponse] = useState<DetectionResponse | null>(null);
+  const [modelVersion, setModelVersion] = useState<DetectionModelVersion>("baseline");
   const [phase, setPhase] = useState<WorkflowPhase>("idle");
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.35);
 
   useEffect(() => {
     return () => {
@@ -74,6 +89,7 @@ export default function ImageDetectionWorkbench({
       setPreviewUrl("");
       setMetadata(null);
       setDetections([]);
+      setDetectionResponse(null);
       if (inputRef.current) inputRef.current.value = "";
       setErrorMessage("Unsupported image format. Choose JPG, PNG, or TIFF.");
       setPhase("error");
@@ -84,18 +100,23 @@ export default function ImageDetectionWorkbench({
     setPreviewUrl(URL.createObjectURL(nextFile));
     setMetadata(null);
     setDetections([]);
+    setDetectionResponse(null);
     setImageSize({ width: 0, height: 0 });
     setProgress(0);
     setErrorMessage("");
     setPhase("idle");
   };
 
-  const startDetection = async (image: ImageMetadata) => {
+  const startDetection = async (
+    image: ImageMetadata,
+    selectedModel: DetectionModelVersion = modelVersion,
+  ) => {
     setPhase("detecting");
     setErrorMessage("");
     try {
-      const result = await runDetection(image.image_id || image.id);
+      const result = await runDetection(image.image_id || image.id, selectedModel);
       setDetections(result.detections);
+      setDetectionResponse(result);
       setPhase("complete");
       onDetectionComplete?.();
     } catch (error) {
@@ -113,7 +134,7 @@ export default function ImageDetectionWorkbench({
     try {
       const uploadedImage = await uploadImage(file, setProgress);
       setMetadata(uploadedImage);
-      await startDetection(uploadedImage);
+      await startDetection(uploadedImage, modelVersion);
     } catch (error) {
       setPhase("error");
       setErrorMessage(getApiErrorMessage(error));
@@ -125,6 +146,7 @@ export default function ImageDetectionWorkbench({
     setPreviewUrl("");
     setMetadata(null);
     setDetections([]);
+    setDetectionResponse(null);
     setProgress(0);
     setErrorMessage("");
     setImageSize({ width: 0, height: 0 });
@@ -138,11 +160,28 @@ export default function ImageDetectionWorkbench({
     metadata?.longitude !== undefined;
   const width = imageSize.width || metadata?.width || 0;
   const height = imageSize.height || metadata?.height || 0;
-  const averageConfidence = detections.length
-    ? detections.reduce((total, detection) => total + detection.confidence, 0) /
-      detections.length
+  const visibleDetections = detections.filter(
+    (detection) => detection.confidence >= confidenceThreshold,
+  );
+  const averageConfidence = visibleDetections.length
+    ? visibleDetections.reduce((total, detection) => total + detection.confidence, 0) /
+      visibleDetections.length
     : 0;
   const isBusy = phase === "uploading" || phase === "detecting";
+  const modelName = detectionResponse?.model_name ?? (
+    modelVersion === "visdrone10_yolo11n" ? "YOLO11n VisDrone10" : "YOLO11n"
+  );
+  const selectedModelVersion = modelVersion === "baseline"
+    ? "drone_person_vehicle"
+    : modelVersion;
+  const reportedModelVersion = detectionResponse?.model_version ?? (
+    modelVersion === "baseline" ? "drone_person_vehicle" : modelVersion
+  );
+  const resultClasses = detectionResponse?.classes ?? (
+    modelVersion === "visdrone10_yolo11n"
+      ? ["pedestrian", "people", "bicycle", "car", "van", "truck", "tricycle", "awning-tricycle", "bus", "motor"]
+      : ["person", "vehicle"]
+  );
 
   return (
     <section className="image-workbench" aria-label="Image upload and detection">
@@ -155,6 +194,32 @@ export default function ImageDetectionWorkbench({
             </div>
             {metadata && (
               <span className="image-id-tag">IMAGE #{metadata.image_id || metadata.id}</span>
+            )}
+          </div>
+
+          <div className="model-selector-block">
+            <label htmlFor="detection-model">Detection model</label>
+            <select
+              id="detection-model"
+              value={modelVersion}
+              onChange={(event) => {
+                const selectedModel = modelOptions.find(
+                  (option) => option.value === event.currentTarget.value,
+                );
+                if (selectedModel) setModelVersion(selectedModel.value);
+                setErrorMessage("");
+              }}
+              disabled={isBusy}
+            >
+              {modelOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {modelVersion === "visdrone10_yolo11n" && (
+              <p className="model-development-note">
+                <Info size={14} />
+                <span>Development model: the available checkpoint is from epoch 5 of a planned 100. Predictions are not validated or production-ready.</span>
+              </p>
             )}
           </div>
 
@@ -223,6 +288,10 @@ export default function ImageDetectionWorkbench({
                       height: event.currentTarget.naturalHeight,
                     });
                   }}
+                  onError={() => {
+                    setErrorMessage("The selected file could not be decoded as an image.");
+                    setPhase("error");
+                  }}
                 />
                 {detections.length > 0 && width > 0 && height > 0 && (
                   <svg
@@ -244,7 +313,7 @@ export default function ImageDetectionWorkbench({
                       const labelY = y1 >= labelHeight ? y1 - labelHeight : y1;
 
                       return (
-                        <g key={detection.id} className={boxClass(detection.class_name)}>
+                        <g key={detection.id} className={boxClass(detection.class_name, detection.class_id)}>
                           <rect
                             className="detection-box"
                             x={x1}
@@ -329,6 +398,16 @@ export default function ImageDetectionWorkbench({
                 <RefreshCw size={16} /> Retry detection
               </button>
             )}
+            {metadata && phase === "complete" && detectionResponse?.model_version !== selectedModelVersion && (
+              <button
+                type="button"
+                className="workbench-primary-button"
+                onClick={() => void startDetection(metadata, modelVersion)}
+                disabled={isBusy}
+              >
+                <RefreshCw size={16} /> Run selected model
+              </button>
+            )}
             {phase === "detecting" && (
               <span className="action-note"><LoaderCircle size={14} className="spin" /> Processing</span>
             )}
@@ -391,14 +470,43 @@ export default function ImageDetectionWorkbench({
               </div>
             </div>
             <div className="results-quick-stats">
-              <span><strong>{detections.length}</strong> objects</span>
+              <span><strong>{visibleDetections.length}</strong> objects</span>
               <span><strong>{formatConfidence(averageConfidence)}</strong> average confidence</span>
             </div>
           </div>
 
+          <div className="model-info-strip">
+            <strong>Model:</strong> {modelName} ({reportedModelVersion})
+            <span>·</span>
+            <strong>Classes:</strong> {resultClasses.join(", ")}
+            <span>·</span>
+            <strong>Confidence threshold:</strong> {formatConfidence(confidenceThreshold)}
+          </div>
+          <p className="coordinate-system-note">
+            Bounding boxes use original-image pixel coordinates in top-left-origin xyxy order.
+          </p>
+
+          <div className="confidence-filter-block">
+            <label htmlFor="confidence-threshold">Minimum confidence</label>
+            <input
+              id="confidence-threshold"
+              type="range"
+              min="0"
+              max="0.95"
+              step="0.05"
+              value={confidenceThreshold}
+              onChange={(event) => setConfidenceThreshold(Number(event.target.value))}
+            />
+            <span>{formatConfidence(confidenceThreshold)}</span>
+          </div>
+
           <div className="detection-legend" aria-label="Detection class colors">
-            <span><i className="legend-person" /> Person</span>
-            <span><i className="legend-vehicle" /> Vehicle</span>
+            {resultClasses.map((className, classId) => (
+              <span key={className}>
+                <i className={`legend-class-${classId}`} />
+                {className}
+              </span>
+            ))}
           </div>
 
           {phase !== "complete" && detections.length === 0 ? (
@@ -407,11 +515,19 @@ export default function ImageDetectionWorkbench({
               <strong>{phase === "detecting" ? "Detection is processing" : "No completed detections yet"}</strong>
               <span>Upload and analyze this image to populate real model results.</span>
             </div>
-          ) : detections.length === 0 ? (
+          ) : visibleDetections.length === 0 ? (
             <div className="results-empty">
               <ScanLine size={22} />
-              <strong>No objects detected</strong>
-              <span>The backend completed inference and returned zero detections for this image.</span>
+              <strong>
+                {detections.length === 0
+                  ? "No objects detected"
+                  : "No objects at the selected confidence threshold"}
+              </strong>
+              <span>
+                {detections.length === 0
+                  ? "The selected model returned no detections for this image."
+                  : "Lower the threshold to review detections that were still stored by the model."}
+              </span>
             </div>
           ) : (
             <div className="detection-table-scroll">
@@ -420,10 +536,10 @@ export default function ImageDetectionWorkbench({
                   <tr><th>ID</th><th>Class</th><th>Confidence</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th></tr>
                 </thead>
                 <tbody>
-                  {detections.map((detection) => (
+                  {visibleDetections.map((detection) => (
                     <tr key={detection.id}>
                       <td className="detection-id-cell">{detection.id}</td>
-                      <td><span className={`class-pill ${boxClass(detection.class_name)}`}>{detection.class_name}</span></td>
+                      <td><span className={`class-pill ${boxClass(detection.class_name, detection.class_id)}`}>{detection.class_name}</span></td>
                       <td className="confidence-cell">{formatConfidence(detection.confidence)}</td>
                       <td>{detection.bbox.x1.toFixed(2)}</td>
                       <td>{detection.bbox.y1.toFixed(2)}</td>

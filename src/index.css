@@ -1757,6 +1757,53 @@ a {
   margin-bottom: 5px;
 }
 
+.model-selector-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  margin: 15px 0;
+}
+
+.model-selector-block > label,
+.confidence-filter-block > label {
+  color: #536171;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.model-selector-block select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #d8e1e8;
+  border-radius: 6px;
+  background: #fff;
+  color: #334557;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.model-selector-block select:focus-visible {
+  outline: 3px solid rgba(37,99,235,.2);
+  outline-offset: 2px;
+}
+
+.model-development-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  border: 1px solid #f1dfb6;
+  border-radius: 6px;
+  background: #fffbf1;
+  color: #806222;
+  margin: 2px 0 0;
+  padding: 8px 9px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.model-development-note svg { flex: 0 0 auto; margin-top: 1px; }
+
 .image-id-tag {
   max-width: 150px;
   overflow: hidden;
@@ -1932,6 +1979,27 @@ a {
 .detection-vehicle .detection-box { stroke: #ff9854; }
 .detection-person .detection-label-bg { fill: #08765c; }
 .detection-vehicle .detection-label-bg { fill: #a95021; }
+
+.detection-class-0 .detection-box { stroke: #14b8a6; }
+.detection-class-0 .detection-label-bg { fill: #0f766e; }
+.detection-class-1 .detection-box { stroke: #f97316; }
+.detection-class-1 .detection-label-bg { fill: #c2410c; }
+.detection-class-2 .detection-box { stroke: #a855f7; }
+.detection-class-2 .detection-label-bg { fill: #7e22ce; }
+.detection-class-3 .detection-box { stroke: #3b82f6; }
+.detection-class-3 .detection-label-bg { fill: #1d4ed8; }
+.detection-class-4 .detection-box { stroke: #eab308; }
+.detection-class-4 .detection-label-bg { fill: #a16207; }
+.detection-class-5 .detection-box { stroke: #ef4444; }
+.detection-class-5 .detection-label-bg { fill: #b91c1c; }
+.detection-class-6 .detection-box { stroke: #06b6d4; }
+.detection-class-6 .detection-label-bg { fill: #0e7490; }
+.detection-class-7 .detection-box { stroke: #ec4899; }
+.detection-class-7 .detection-label-bg { fill: #be185d; }
+.detection-class-8 .detection-box { stroke: #84cc16; }
+.detection-class-8 .detection-label-bg { fill: #4d7c0f; }
+.detection-class-9 .detection-box { stroke: #8b5cf6; }
+.detection-class-9 .detection-label-bg { fill: #6d28d9; }
 
 .detection-label-text {
   fill: white;
@@ -2134,6 +2202,13 @@ a {
   line-height: 1.5;
 }
 
+.coordinate-system-note {
+  color: #7a8795;
+  margin: 8px 16px 0;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .results-panel { padding: 15px 0 0; }
 
 .results-heading-row {
@@ -2163,6 +2238,7 @@ a {
 
 .detection-legend {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   margin: 11px 16px;
   color: #687788;
@@ -2173,6 +2249,16 @@ a {
 .detection-legend i { width: 8px; height: 8px; display: inline-block; border-radius: 2px; }
 .legend-person { background: #00a77e; }
 .legend-vehicle { background: #e87a35; }
+.legend-class-0 { background: #14b8a6; }
+.legend-class-1 { background: #f97316; }
+.legend-class-2 { background: #a855f7; }
+.legend-class-3 { background: #3b82f6; }
+.legend-class-4 { background: #eab308; }
+.legend-class-5 { background: #ef4444; }
+.legend-class-6 { background: #06b6d4; }
+.legend-class-7 { background: #ec4899; }
+.legend-class-8 { background: #84cc16; }
+.legend-class-9 { background: #8b5cf6; }
 
 .results-empty {
   min-height: 150px;
@@ -2236,6 +2322,16 @@ a {
 
 .class-pill.detection-person { background: #e6f6f0; color: #087455; }
 .class-pill.detection-vehicle { background: #fff0e5; color: #a9511e; }
+.class-pill.detection-class-0 { background: #e6f8f6; color: #0f766e; }
+.class-pill.detection-class-1 { background: #fff1e8; color: #c2410c; }
+.class-pill.detection-class-2 { background: #f5eefe; color: #7e22ce; }
+.class-pill.detection-class-3 { background: #eaf2ff; color: #1d4ed8; }
+.class-pill.detection-class-4 { background: #fdf7df; color: #8a5a00; }
+.class-pill.detection-class-5 { background: #feecec; color: #b91c1c; }
+.class-pill.detection-class-6 { background: #e5f8fc; color: #0e7490; }
+.class-pill.detection-class-7 { background: #fceaf3; color: #be185d; }
+.class-pill.detection-class-8 { background: #f1f8e6; color: #4d7c0f; }
+.class-pill.detection-class-9 { background: #f0edff; color: #6d28d9; }
 
 @media (max-width: 1250px) {
   .live-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }

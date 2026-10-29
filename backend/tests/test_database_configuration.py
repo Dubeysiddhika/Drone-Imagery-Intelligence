@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateTable
@@ -31,6 +32,20 @@ class DatabaseConfigurationTests(unittest.TestCase):
     def test_production_requires_database_url(self):
         with self.assertRaisesRegex(RuntimeError, "DATABASE_URL must be set"):
             get_database_url({"APP_ENV": "production"})
+
+    def test_relative_sqlite_url_is_resolved_from_project_root(self):
+        url = get_database_url({"DATABASE_URL": "sqlite:///local.db"})
+
+        self.assertEqual(
+            Path(make_url(url).database).resolve(),
+            (PROJECT_ROOT / "local.db").resolve(),
+        )
+
+    def test_sqlite_memory_url_is_preserved(self):
+        self.assertEqual(
+            get_database_url({"DATABASE_URL": "sqlite:///:memory:"}),
+            "sqlite:///:memory:",
+        )
 
     def test_postgresql_url_uses_psycopg_driver_without_connecting(self):
         url = "postgresql://postgres:placeholder@localhost/drone_intelligence"

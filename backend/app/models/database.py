@@ -44,6 +44,14 @@ def ensure_detection_columns(bind=engine) -> None:
             connection.execute(
                 text("ALTER TABLE detections ADD COLUMN class_id INTEGER")
             )
+        if "model_name" not in columns:
+            connection.execute(
+                text("ALTER TABLE detections ADD COLUMN model_name VARCHAR(100)")
+            )
+        if "model_version" not in columns:
+            connection.execute(
+                text("ALTER TABLE detections ADD COLUMN model_version VARCHAR(200)")
+            )
         if "created_at" not in columns and bind.dialect.name == "postgresql":
             connection.execute(
                 text(

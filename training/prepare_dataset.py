@@ -8,13 +8,26 @@ import shutil
 from pathlib import Path
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def resolve_project_path(path: Path) -> Path:
+    path = path.expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path.resolve()
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--images", type=Path, required=True, help="Directory containing source images")
     parser.add_argument("--labels", type=Path, required=True, help="Directory containing YOLO .txt labels")
-    parser.add_argument("--output", type=Path, default=Path("dataset"), help="Dataset output directory")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=PROJECT_ROOT / "dataset",
+        help="Dataset output directory (relative paths are rooted at the project directory)",
+    )
     parser.add_argument("--val", type=float, default=0.2, help="Validation fraction")
     parser.add_argument("--test", type=float, default=0.1, help="Test fraction")
     parser.add_argument("--seed", type=int, default=42)
@@ -26,6 +39,20 @@ def main() -> None:
     args = parse_args()
     if args.val < 0 or args.test < 0 or args.val + args.test >= 1:
         raise SystemExit("--val and --test must be non-negative and sum to less than 1")
+
+    args.images = resolve_project_path(args.images)
+    args.labels = resolve_project_path(args.labels)
+    args.output = resolve_project_path(args.output)
+    try:
+        args.output.relative_to(PROJECT_ROOT)
+    except ValueError as error:
+        raise SystemExit(
+            f"Dataset output must stay inside the project directory: {args.output}"
+        ) from error
+    if not args.images.is_dir():
+        raise SystemExit(f"Image directory not found: {args.images}")
+    if not args.labels.is_dir():
+        raise SystemExit(f"Label directory not found: {args.labels}")
 
     images = sorted(path for path in args.images.iterdir() if path.suffix.lower() in IMAGE_EXTENSIONS)
     if not images:
