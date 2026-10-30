@@ -34,20 +34,18 @@ dataset_visdrone10_source/
 ```
 
 Point the verifier at the directory containing the split folders (or point it
-directly at a split folder). For example, from the project root in PowerShell:
+directly at a split folder). Install the ten-class dependencies from the
+project root, then run in PowerShell:
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-1\Scripts\python.exe' `
-  .\scripts\verify_visdrone_source.py `
-  --source .\dataset_visdrone10_source
+python -m pip install -r .\requirements-visdrone10.txt
+python .\scripts\verify_visdrone_source.py --source .\dataset_visdrone10_source
 ```
 
-Run the synthetic tests from the project root with the interpreter that has
-Pillow and PyYAML installed (`.venv-2` in the current workspace):
+Run the synthetic tests from the project root:
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-2\Scripts\python.exe' `
-  -m unittest discover -s tests -p 'test_*visdrone*.py' -v
+python -m unittest discover -s tests -p 'test_*visdrone*.py' -v
 ```
 
 The verifier is read-only. It reports image and annotation-file counts, rows,
@@ -85,18 +83,13 @@ Run staging from the project root only after confirming that
 `dataset_visdrone10/` does not exist:
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-1\Scripts\python.exe' `
-  .\scripts\stage_visdrone_source.py `
-  --source .\dataset_visdrone10_source `
-  --output .\dataset_visdrone10
+python .\scripts\stage_visdrone_source.py --source .\dataset_visdrone10_source --output .\dataset_visdrone10
 ```
 
 Validate the staged tree independently:
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-1\Scripts\python.exe' `
-  .\scripts\verify_visdrone_source.py `
-  --source .\dataset_visdrone10
+python .\scripts\verify_visdrone_source.py --source .\dataset_visdrone10
 ```
 
 The source verifier continues to report non-zero status for the staged tree
@@ -106,9 +99,7 @@ handles this separately through the explicit training-label exclusion policy.
 Run both synthetic test suites without requiring the real dataset:
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-1\Scripts\python.exe' -m pytest `
-  .\tests\test_verify_visdrone_source.py `
-  .\tests\test_stage_visdrone_source.py -v
+python -m pytest .\tests\test_verify_visdrone_source.py .\tests\test_stage_visdrone_source.py -v
 ```
 
 Expected VisDrone detection annotation rows have eight comma-separated integer
@@ -139,16 +130,15 @@ labels or start training.
 
 The separate converter reads the staged VisDrone annotations and writes images,
 labels, a ten-name YAML, and a conversion report under
-`dataset_visdrone10_yolo/`. It refuses any existing output folder and never
+`dataset_visdrone10_yolo/`. The tracked portable training YAML is
+`configs/visdrone10.yaml`; do not use either two-class YAML for this run. The
+converter refuses any existing output folder and never
 modifies `dataset/`, the original source, the staging source, or the
 two-class run. Use the environment with Pillow/PyYAML available (and
-Ultralytics 8.4.155 is installed in `.venv-2`):
+Ultralytics 8.4.155 as pinned in `requirements-visdrone10.txt`):
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-2\Scripts\python.exe' `
-  .\scripts\convert_visdrone10_yolo.py `
-  --source .\dataset_visdrone10 `
-  --output .\dataset_visdrone10_yolo
+python .\scripts\convert_visdrone10_yolo.py --source .\dataset_visdrone10 --output .\dataset_visdrone10_yolo
 ```
 
 The converter validates the source annotations and image dimensions, rejects
@@ -178,10 +168,7 @@ appear in the conversion report. After conversion, validate without modifying
 the generated dataset:
 
 ```powershell
-& 'E:\Drone-image-intelligence\.venv-2\Scripts\python.exe' `
-  .\scripts\convert_visdrone10_yolo.py `
-  --validate-only `
-  --output .\dataset_visdrone10_yolo
+python .\scripts\convert_visdrone10_yolo.py --validate-only --output .\dataset_visdrone10_yolo
 ```
 
 Training has not been started as part of conversion. Review the generated

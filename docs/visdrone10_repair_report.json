@@ -1,0 +1,374 @@
+{
+  "source": "dataset_visdrone10_source",
+  "staging_directory": "dataset_visdrone10",
+  "changed_files": [
+    "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt"
+  ],
+  "changed_row_count": 34,
+  "changed_rows": [
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 1,
+      "original_row": "440,541,271,152,1,6,0,0,",
+      "staged_row": "440,541,271,152,1,6,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 2,
+      "original_row": "436,772,134,72,1,5,0,0,",
+      "staged_row": "436,772,134,72,1,5,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 3,
+      "original_row": "601,713,60,39,1,10,0,0,",
+      "staged_row": "601,713,60,39,1,10,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 4,
+      "original_row": "486,706,102,59,1,8,0,0,",
+      "staged_row": "486,706,102,59,1,8,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 5,
+      "original_row": "397,978,167,90,1,4,0,0,",
+      "staged_row": "397,978,167,90,1,4,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 6,
+      "original_row": "718,1063,23,14,1,1,1,0,",
+      "staged_row": "718,1063,23,14,1,1,1,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 7,
+      "original_row": "696,13,21,33,1,3,0,0,",
+      "staged_row": "696,13,21,33,1,3,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 8,
+      "original_row": "1124,73,98,62,1,5,0,1,",
+      "staged_row": "1124,73,98,62,1,5,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 9,
+      "original_row": "1089,35,84,46,1,7,0,1,",
+      "staged_row": "1089,35,84,46,1,7,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 10,
+      "original_row": "1351,5,48,26,1,10,0,1,",
+      "staged_row": "1351,5,48,26,1,10,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 11,
+      "original_row": "1381,28,60,72,1,8,0,0,",
+      "staged_row": "1381,28,60,72,1,8,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 12,
+      "original_row": "1370,113,44,37,1,10,0,0,",
+      "staged_row": "1370,113,44,37,1,10,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 13,
+      "original_row": "1272,143,91,55,1,7,0,0,",
+      "staged_row": "1272,143,91,55,1,7,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 14,
+      "original_row": "1323,128,46,31,1,10,0,1,",
+      "staged_row": "1323,128,46,31,1,10,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 15,
+      "original_row": "1300,135,33,24,1,3,0,1,",
+      "staged_row": "1300,135,33,24,1,3,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 16,
+      "original_row": "1260,246,83,39,1,7,0,0,",
+      "staged_row": "1260,246,83,39,1,7,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 17,
+      "original_row": "1266,211,90,40,1,7,0,1,",
+      "staged_row": "1266,211,90,40,1,7,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 18,
+      "original_row": "1225,100,13,36,1,3,0,0,",
+      "staged_row": "1225,100,13,36,1,3,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 19,
+      "original_row": "1070,159,200,104,1,6,0,0,",
+      "staged_row": "1070,159,200,104,1,6,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 20,
+      "original_row": "1072,283,139,64,1,5,0,0,",
+      "staged_row": "1072,283,139,64,1,5,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 21,
+      "original_row": "1052,371,138,79,1,5,0,0,",
+      "staged_row": "1052,371,138,79,1,5,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 22,
+      "original_row": "1046,441,141,93,1,5,0,0,",
+      "staged_row": "1046,441,141,93,1,5,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 23,
+      "original_row": "1294,316,84,51,1,7,0,0,",
+      "staged_row": "1294,316,84,51,1,7,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 24,
+      "original_row": "1291,367,61,39,1,8,0,0,",
+      "staged_row": "1291,367,61,39,1,8,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 25,
+      "original_row": "1026,553,145,76,1,4,0,0,",
+      "staged_row": "1026,553,145,76,1,4,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 26,
+      "original_row": "1043,620,119,78,1,5,0,0,",
+      "staged_row": "1043,620,119,78,1,5,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 27,
+      "original_row": "1216,608,94,56,1,7,0,0,",
+      "staged_row": "1216,608,94,56,1,7,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 28,
+      "original_row": "1240,682,52,31,1,10,0,0,",
+      "staged_row": "1240,682,52,31,1,10,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 29,
+      "original_row": "1232,745,92,45,1,7,0,1,",
+      "staged_row": "1232,745,92,45,1,7,0,1"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 30,
+      "original_row": "1414,493,22,38,1,1,0,0,",
+      "staged_row": "1414,493,22,38,1,1,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 31,
+      "original_row": "1438,482,76,45,1,7,0,0,",
+      "staged_row": "1438,482,76,45,1,7,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 32,
+      "original_row": "1446,673,88,60,1,7,0,0,",
+      "staged_row": "1446,673,88,60,1,7,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 33,
+      "original_row": "1460,242,62,146,1,6,0,0,",
+      "staged_row": "1460,242,62,146,1,6,0,0"
+    },
+    {
+      "file": "VisDrone2019-DET-train/annotations/9999974_00000_d_0000053.txt",
+      "line": 34,
+      "original_row": "1098,0,175,38,1,6,1,0,",
+      "staged_row": "1098,0,175,38,1,6,1,0"
+    }
+  ],
+  "zero_area_box_count": 3,
+  "zero_height_box_count": 3,
+  "zero_area_annotations": [
+    {
+      "split": "VisDrone2019-DET-train",
+      "file_line": "0000293_03401_d_0000939.txt:130",
+      "exclude_from_generated_training_labels": true,
+      "reason": "zero-area box; source row is preserved unchanged"
+    },
+    {
+      "split": "VisDrone2019-DET-train",
+      "file_line": "9999985_00000_d_0000020.txt:12",
+      "exclude_from_generated_training_labels": true,
+      "reason": "zero-area box; source row is preserved unchanged"
+    },
+    {
+      "split": "VisDrone2019-DET-train",
+      "file_line": "9999999_00590_d_0000267.txt:89",
+      "exclude_from_generated_training_labels": true,
+      "reason": "zero-area box; source row is preserved unchanged"
+    }
+  ],
+  "zero_area_training_label_policy": "Exclude zero-width or zero-height boxes from generated YOLO labels. Do not alter source/staged annotation rows or invent coordinates.",
+  "source_categories": {
+    "1": "pedestrian",
+    "2": "people",
+    "3": "bicycle",
+    "4": "car",
+    "5": "van",
+    "6": "truck",
+    "7": "tricycle",
+    "8": "awning-tricycle",
+    "9": "bus",
+    "10": "motor",
+    "11": "others"
+  },
+  "verification": {
+    "source": "dataset_visdrone10",
+    "ready_for_ten_class_conversion": false,
+    "zero_area_training_label_policy": "Exclude zero-width or zero-height rows from generated training labels; preserve the original rows in the staged annotations.",
+    "observed_category_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "train_validation_category_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "category_names_observed": {
+      "1": "pedestrian",
+      "2": "people",
+      "3": "bicycle",
+      "4": "car",
+      "5": "van",
+      "6": "truck",
+      "7": "tricycle",
+      "8": "awning-tricycle",
+      "9": "bus",
+      "10": "motor",
+      "11": "others"
+    },
+    "missing_required_category_ids": [],
+    "splits": {
+      "VisDrone2019-DET-train": {
+        "available": true,
+        "required": true,
+        "images_directory_present": true,
+        "annotations_directory_present": true,
+        "image_count": 6471,
+        "annotation_file_count": 6471,
+        "annotation_row_count": 353550,
+        "malformed_row_count": 0,
+        "malformed_row_examples": [],
+        "zero_area_box_count": 3,
+        "zero_height_box_count": 3,
+        "zero_area_box_examples": [
+          "0000293_03401_d_0000939.txt:130",
+          "9999985_00000_d_0000020.txt:12",
+          "9999999_00590_d_0000267.txt:89"
+        ],
+        "negative_bbox_size_count": 0,
+        "category_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "unsupported_category_ids": [],
+        "images_without_annotations": [],
+        "annotations_without_images": [],
+        "errors": [
+          "Found 3 zero-area annotation box(es) (3 with zero height); these rows must be excluded from generated training labels."
+        ]
+      },
+      "VisDrone2019-DET-val": {
+        "available": true,
+        "required": true,
+        "images_directory_present": true,
+        "annotations_directory_present": true,
+        "image_count": 548,
+        "annotation_file_count": 548,
+        "annotation_row_count": 40169,
+        "malformed_row_count": 0,
+        "malformed_row_examples": [],
+        "zero_area_box_count": 0,
+        "zero_height_box_count": 0,
+        "zero_area_box_examples": [],
+        "negative_bbox_size_count": 0,
+        "category_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "unsupported_category_ids": [],
+        "images_without_annotations": [],
+        "annotations_without_images": [],
+        "errors": []
+      }
+    },
+    "errors": [
+      "VisDrone2019-DET-train: Found 3 zero-area annotation box(es) (3 with zero height); these rows must be excluded from generated training labels."
+    ]
+  }
+}
