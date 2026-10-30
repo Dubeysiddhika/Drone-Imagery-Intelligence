@@ -90,7 +90,7 @@ def validate_model_path(model_path: Path, project_root: Path = PROJECT_ROOT) -> 
     return resolved_model
 
 
-def validate_dataset(data_path: Path) -> list[str]:
+def validate_dataset(data_path: Path, project_root: Path = PROJECT_ROOT) -> list[str]:
     if not data_path.is_file():
         raise FileNotFoundError(f"Dataset YAML not found: {data_path}")
     with data_path.open("r", encoding="utf-8") as handle:
@@ -114,7 +114,7 @@ def validate_dataset(data_path: Path) -> list[str]:
 
     dataset_root = Path(dataset.get("path", data_path.parent))
     if not dataset_root.is_absolute():
-        dataset_root = data_path.parent / dataset_root
+        dataset_root = project_root / dataset_root
     for split in ("train", "val"):
         split_path = dataset.get(split)
         if not isinstance(split_path, str) or not split_path:
