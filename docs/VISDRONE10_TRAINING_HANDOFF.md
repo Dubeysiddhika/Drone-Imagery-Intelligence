@@ -108,6 +108,7 @@ resume scripts, are also SHA-256 recorded in the committed manifest.
 For a new clone:
 
 ```powershell
+git lfs install
 git clone --branch handoff/visdrone10-training-resume --single-branch https://github.com/Dubeysiddhika/Drone-Imagery-Intelligence.git
 Set-Location .\Drone-Imagery-Intelligence
 git lfs pull
@@ -116,6 +117,7 @@ git lfs pull
 For an existing clone:
 
 ```powershell
+git lfs install
 git fetch origin handoff/visdrone10-training-resume
 git switch --track -c handoff/visdrone10-training-resume origin/handoff/visdrone10-training-resume
 git lfs pull origin handoff/visdrone10-training-resume
