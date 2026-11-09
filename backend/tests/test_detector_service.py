@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -106,6 +107,27 @@ class DetectorServiceTests(unittest.TestCase):
         self.assertEqual(
             Path(metadata["model_path"]),
             detector.PROJECT_ROOT / "runs" / "custom" / "weights" / "best.pt",
+        )
+
+    def test_visdrone10_default_path_and_classes_file_are_configured(self):
+        metadata = get_model_metadata("visdrone10_yolo11n")
+        classes_path = detector.PROJECT_ROOT / "backend" / "app" / "models" / "classes.json"
+        weights_path = (
+            detector.PROJECT_ROOT
+            / "backend"
+            / "app"
+            / "models"
+            / "weights"
+            / "visdrone10_yolo11n_best.pt"
+        )
+
+        self.assertEqual(Path(metadata["model_path"]), weights_path.resolve())
+        self.assertTrue(weights_path.is_file())
+        with classes_path.open("r", encoding="utf-8") as classes_file:
+            classes = json.load(classes_file)
+        self.assertEqual(
+            [classes[str(index)] for index in range(len(classes))],
+            VISDRONE10_CLASS_NAMES,
         )
 
     def test_model_checkpoint_class_mismatch_is_rejected(self):

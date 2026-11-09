@@ -2,14 +2,16 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from shutil import copyfile
 from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
 from app.models.database import Base, get_db
+from app.models.models import Detection
 from app.routes import images
 from app.services.metadata import (
     _parse_capture_time,
@@ -138,6 +140,33 @@ class ImageMetadataApiTests(unittest.TestCase):
         self.assertEqual(detail.json()["image_id"], image_id)
         self.assertEqual(detail.json()["width"], 1360)
         self.assertIsNone(detail.json()["latitude"])
+
+        preview = self.client.get(f"/api/images/{image_id}/preview")
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.headers["content-type"], "image/jpeg")
+        self.assertTrue(preview.content.startswith(b"\xff\xd8"))
+
+        listing = self.client.get("/api/images/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json()[0]["image_id"], image_id)
+        self.assertEqual(listing.json()[0]["detection_count"], 0)
+        self.assertNotIn("filepath", listing.json()[0])
+
+    def test_preview_rejects_file_paths_outside_upload_directory(self):
+        outside_image = Path(self.temp_dir.name) / "outside.jpg"
+        copyfile(TEST_IMAGE, outside_image)
+
+        with self.session_factory() as session:
+            image = images.DroneImage(
+                filename=outside_image.name,
+                filepath=str(outside_image),
+            )
+            session.add(image)
+            session.commit()
+            image_id = image.id
+
+        response = self.client.get(f"/api/images/{image_id}/preview")
+        self.assertEqual(response.status_code, 404)
 
     def test_upload_rejects_corrupt_image_without_storing_file(self):
         response = self.client.post(

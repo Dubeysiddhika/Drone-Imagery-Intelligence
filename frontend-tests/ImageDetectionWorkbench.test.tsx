@@ -7,6 +7,11 @@ import ImageDetectionWorkbench from "../src/components/dashboard/ImageDetectionW
 import {
   runDetection,
   uploadImage,
+  getAvailableModels,
+  getImage,
+  getImagePreviewUrl,
+  getStoredDetections,
+  listImages,
   type DetectionResponse,
   type ImageMetadata,
 } from "../src/services/api";
@@ -16,6 +21,11 @@ vi.mock("../src/services/api", () => ({
     error instanceof Error ? error.message : "Request failed",
   runDetection: vi.fn(),
   uploadImage: vi.fn(),
+  getAvailableModels: vi.fn(),
+  getImage: vi.fn(),
+  getImagePreviewUrl: vi.fn(),
+  getStoredDetections: vi.fn(),
+  listImages: vi.fn(),
 }));
 
 const uploadedImage: ImageMetadata = {
@@ -101,6 +111,30 @@ describe("ImageDetectionWorkbench", () => {
     });
     vi.mocked(uploadImage).mockResolvedValue(uploadedImage);
     vi.mocked(runDetection).mockResolvedValue(baselineResponse);
+    vi.mocked(getStoredDetections).mockResolvedValue(baselineResponse);
+    vi.mocked(listImages).mockResolvedValue([]);
+    vi.mocked(getAvailableModels).mockResolvedValue([
+      {
+        model_id: "baseline",
+        model_name: "YOLO11n",
+        model_version: "drone_person_vehicle",
+        framework: "Ultralytics YOLO",
+        class_count: 2,
+        weights_available: true,
+      },
+      {
+        model_id: "visdrone10_yolo11n",
+        model_name: "YOLO11n VisDrone10",
+        model_version: "visdrone10_yolo11n",
+        framework: "Ultralytics YOLO",
+        class_count: 10,
+        weights_available: true,
+      },
+    ]);
+    vi.mocked(getImage).mockResolvedValue(uploadedImage);
+    vi.mocked(getImagePreviewUrl).mockReturnValue(
+      "http://127.0.0.1:8000/api/images/42/preview",
+    );
   });
 
   afterEach(() => {
@@ -135,12 +169,13 @@ describe("ImageDetectionWorkbench", () => {
 
   it("sends the ten-class selection, shows its status and renders all class labels", async () => {
     vi.mocked(runDetection).mockResolvedValue(visdrone10Response);
+    vi.mocked(getStoredDetections).mockResolvedValue(visdrone10Response);
     render(<ImageDetectionWorkbench />);
 
     fireEvent.change(screen.getByLabelText("Detection model"), {
       target: { value: "visdrone10_yolo11n" },
     });
-    expect(screen.getByText(/epoch 5 of a planned 100/)).toBeTruthy();
+    expect(screen.getByText(/mAP50 32.9%/)).toBeTruthy();
     chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
 
@@ -170,11 +205,13 @@ describe("ImageDetectionWorkbench", () => {
   });
 
   it("shows a clear message when the model returns no detections", async () => {
-    vi.mocked(runDetection).mockResolvedValue({
+    const emptyResult = {
       ...baselineResponse,
       detection_count: 0,
       detections: [],
-    });
+    };
+    vi.mocked(runDetection).mockResolvedValue(emptyResult);
+    vi.mocked(getStoredDetections).mockResolvedValue(emptyResult);
     render(<ImageDetectionWorkbench />);
     chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
@@ -223,5 +260,28 @@ describe("ImageDetectionWorkbench", () => {
     expect(await screen.findByText("YOLO is processing the uploaded image…")).toBeTruthy();
     resolveDetection(baselineResponse);
     await screen.findByText("Detection complete. Results were returned by the backend.");
+  });
+
+  it("reopens a stored image and retrieves its persisted detections", async () => {
+    vi.mocked(listImages).mockResolvedValue([uploadedImage]);
+    vi.mocked(getStoredDetections).mockResolvedValue(visdrone10Response);
+    render(<ImageDetectionWorkbench />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /#42 · drone.png/ })).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText("Or reopen an uploaded image"), {
+      target: { value: "42" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Load results" }));
+
+    await waitFor(() => {
+      expect(getImage).toHaveBeenCalledWith(42);
+      expect(getStoredDetections).toHaveBeenCalledWith(42);
+    });
+    expect(screen.getAllByText("awning-tricycle").length).toBeGreaterThan(0);
+    expect(
+      (screen.getByRole("img", { name: /Preview of drone.png/ }) as HTMLImageElement).src,
+    ).toContain("/api/images/42/preview");
   });
 });

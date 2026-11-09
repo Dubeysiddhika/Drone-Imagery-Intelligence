@@ -12,7 +12,7 @@ from ..services.detector import (
     ModelUnavailableError,
     detect_objects,
 )
-from ..services.model_registry import get_model_metadata
+from ..services.model_registry import get_available_models, get_model_metadata
 
 
 router = APIRouter()
@@ -24,6 +24,11 @@ def analysis_status():
     return {
         "message": "Analysis API is working"
     }
+
+
+@router.get("/models", summary="List available detection models")
+def list_models():
+    return {"models": get_available_models()}
 
 
 @router.post(

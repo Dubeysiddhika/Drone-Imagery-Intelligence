@@ -1,125 +1,157 @@
-import { Plus, Search, MapPin, CalendarDays, Image } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { CalendarDays, MapPin, Plus, RefreshCw } from "lucide-react";
 
-const surveys = [
-  {
-    name: "Kanpur Urban Survey",
-    location: "Kanpur, Uttar Pradesh",
-    date: "Aug 26, 2026",
-    images: 84,
-    detections: 1284,
-    status: "completed",
-  },
-  {
-    name: "Agricultural Field 04",
-    location: "Lucknow, Uttar Pradesh",
-    date: "Aug 25, 2026",
-    images: 56,
-    detections: 923,
-    status: "processing",
-  },
-  {
-    name: "Highway Inspection",
-    location: "Agra-Lucknow Expressway",
-    date: "Aug 24, 2026",
-    images: 132,
-    detections: 3241,
-    status: "completed",
-  },
-  {
-    name: "River Basin Survey",
-    location: "Yamuna Basin",
-    date: "Aug 22, 2026",
-    images: 74,
-    detections: 812,
-    status: "completed",
-  },
-];
+import {
+  createSurvey,
+  getApiErrorMessage,
+  listSurveys,
+  type SurveyRecord,
+} from "../services/api";
+
+function formatDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
 
 export default function Surveys() {
+  const [surveys, setSurveys] = useState<SurveyRecord[]>([]);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const refreshSurveys = async () => {
+    try {
+      setSurveys(await listSurveys());
+      setError("");
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshSurveys();
+  }, []);
+
+  const submitSurvey = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await createSurvey(trimmedName, description.trim());
+      setName("");
+      setDescription("");
+      setSuccess("Survey created.");
+      await refreshSurveys();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div>
-      <div className="page-header">
+    <div className="survey-workspace">
+      <header className="dashboard-heading">
         <div>
-          <h1 className="page-title">Surveys</h1>
-          <p className="page-description">
-            Manage and explore your drone survey missions.
-          </p>
+          <p className="dashboard-eyebrow">MISSION ORGANIZATION</p>
+          <h1>Surveys</h1>
+          <p>Manage survey records stored by the backend.</p>
         </div>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            setLoading(true);
+            void refreshSurveys();
+          }}
+          disabled={loading}
+        >
+          <RefreshCw size={15} /> Refresh
+        </button>
+      </header>
 
-        <a href="/upload" className="primary-button">
-          <Plus size={16} />
-          Create Survey
-        </a>
-      </div>
+      {error && <div className="dashboard-inline-error" role="alert">{error}</div>}
+      {success && <div className="workflow-message workflow-complete" role="status">{success}</div>}
 
-      <div className="card">
-        <div className="card-header">
-          <div className="survey-search">
-            <Search size={16} />
-            <input placeholder="Search surveys..." />
+      <section className="workbench-panel survey-create-panel">
+        <div className="dashboard-section-heading">
+          <div>
+            <p className="panel-kicker">NEW RECORD</p>
+            <h2>Create a survey</h2>
           </div>
-
-          <select className="select">
-            <option>All surveys</option>
-            <option>Completed</option>
-            <option>Processing</option>
-          </select>
         </div>
+        <form className="survey-create-form" onSubmit={(event) => void submitSurvey(event)}>
+          <label>
+            <span>Survey name</span>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={200}
+              required
+              placeholder="e.g. North field inspection"
+            />
+          </label>
+          <label>
+            <span>Description</span>
+            <input
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Optional notes"
+            />
+          </label>
+          <button type="submit" className="workbench-primary-button" disabled={saving || !name.trim()}>
+            <Plus size={15} /> {saving ? "Creating…" : "Create survey"}
+          </button>
+        </form>
+      </section>
 
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Survey</th>
-                <th>Location</th>
-                <th>Date</th>
-                <th>Images</th>
-                <th>Detections</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {surveys.map((survey) => (
-                <tr key={survey.name}>
-                  <td>
-                    <strong>{survey.name}</strong>
-                  </td>
-
-                  <td>
-                    <span className="table-icon-text">
-                      <MapPin size={13} />
-                      {survey.location}
-                    </span>
-                  </td>
-
-                  <td>
-                    <span className="table-icon-text">
-                      <CalendarDays size={13} />
-                      {survey.date}
-                    </span>
-                  </td>
-
-                  <td>
-                    <span className="table-icon-text">
-                      <Image size={13} />
-                      {survey.images}
-                    </span>
-                  </td>
-
-                  <td>{survey.detections.toLocaleString()}</td>
-
-                  <td>
-                    <span className={`status ${survey.status}`}>
-                      {survey.status.toUpperCase()}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <section className="workbench-panel survey-list-panel">
+        <div className="dashboard-section-heading">
+          <div>
+            <p className="panel-kicker">DATABASE RECORDS</p>
+            <h2>Survey register</h2>
+          </div>
+          <span className="map-record-count">{surveys.length} surveys</span>
         </div>
-      </div>
+        {loading ? (
+          <p className="dashboard-empty-note" role="status">Loading surveys…</p>
+        ) : surveys.length ? (
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr><th>Survey</th><th>Description</th><th>Created</th></tr>
+              </thead>
+              <tbody>
+                {surveys.map((survey) => (
+                  <tr key={survey.id}>
+                    <td><strong>{survey.name}</strong></td>
+                    <td>{survey.description || "—"}</td>
+                    <td>
+                      <span className="table-icon-text">
+                        <CalendarDays size={13} /> {formatDate(survey.created_at)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="map-empty-state">
+            <MapPin size={20} />
+            <strong>No surveys in the database.</strong>
+            <span>Create a survey record above. Image-to-survey assignment is not currently exposed by the backend.</span>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
