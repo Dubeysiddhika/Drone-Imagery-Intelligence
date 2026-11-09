@@ -1,137 +1,204 @@
+import { useEffect, useState } from "react";
 import {
-  TrendingUp,
-  Target,
-  Layers,
-  Gauge,
-} from "lucide-react";
-
-import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
 } from "recharts";
+import { Activity, Image as ImageIcon, ScanSearch, Target } from "lucide-react";
 
-const data = [
-  { name: "Cars", value: 823 },
-  { name: "People", value: 312 },
-  { name: "Buildings", value: 241 },
-  { name: "Trucks", value: 106 },
+import {
+  getApiErrorMessage,
+  getDashboardSummary,
+  type DashboardSummary,
+} from "../services/api";
+
+const chartColors = [
+  "#16847c", "#e68543", "#8b5cf6", "#3b82f6", "#eab308",
+  "#ef4444", "#06b6d4", "#ec4899", "#84cc16", "#64748b",
 ];
 
 export default function Analytics() {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getDashboardSummary()
+      .then((result) => {
+        if (active) setSummary(result);
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(getApiErrorMessage(requestError));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const classCounts = summary?.class_counts ?? [];
+  const hasDetections = classCounts.some((item) => item.count > 0);
+
   return (
-    <div>
-      <div className="page-header">
+    <div className="analytics-workspace">
+      <header className="dashboard-heading">
         <div>
-          <h1 className="page-title">Survey Analytics</h1>
-          <p className="page-description">
-            Turn detection data into actionable intelligence.
-          </p>
+          <p className="dashboard-eyebrow">MODEL OUTPUT / DATABASE AGGREGATES</p>
+          <h1>Detection Analytics</h1>
+          <p>Counts and confidence are computed from persisted detections.</p>
         </div>
+        {summary?.model_version && (
+          <span className="model-version-chip">
+            {summary.model_name} · {summary.model_version}
+          </span>
+        )}
+      </header>
 
-        <select className="select">
-          <option>All Surveys</option>
-          <option>Kanpur Urban Survey</option>
-          <option>Highway Inspection</option>
-        </select>
-      </div>
+      {error && <div className="dashboard-inline-error" role="alert">{error}</div>}
 
-      <div className="stats-grid">
-        <MiniStat
+      <section className="analytics-stat-grid" aria-label="Detection statistics">
+        <AnalyticsStat
+          icon={<ImageIcon size={18} />}
+          title="Uploaded images"
+          value={summary?.total_images}
+          loading={loading}
+        />
+        <AnalyticsStat
+          icon={<ScanSearch size={18} />}
+          title="Persisted detections"
+          value={summary?.total_detections}
+          loading={loading}
+        />
+        <AnalyticsStat
+          icon={<Activity size={18} />}
+          title="Surveys"
+          value={summary?.total_surveys}
+          loading={loading}
+        />
+        <AnalyticsStat
           icon={<Target size={18} />}
-          title="Detection Accuracy"
-          value="91.8%"
+          title="Average confidence"
+          value={summary?.average_confidence === null
+            ? "No detections"
+            : summary?.average_confidence === undefined
+              ? undefined
+              : `${(summary.average_confidence * 100).toFixed(2)}%`}
+          loading={loading}
         />
+      </section>
 
-        <MiniStat
-          icon={<Layers size={18} />}
-          title="Objects / km²"
-          value="401"
-        />
-
-        <MiniStat
-          icon={<Gauge size={18} />}
-          title="Avg. Confidence"
-          value="87.4%"
-        />
-
-        <MiniStat
-          icon={<TrendingUp size={18} />}
-          title="Growth"
-          value="+23.4%"
-        />
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <div className="card-title">
-              Object Detection Distribution
+      {loading ? (
+        <div className="map-empty-state" role="status">Loading persisted analytics…</div>
+      ) : hasDetections ? (
+        <div className="analytics-chart-grid">
+          <article className="workbench-panel analytics-chart-card">
+            <div className="dashboard-section-heading">
+              <div>
+                <p className="panel-kicker">CLASS DISTRIBUTION</p>
+                <h2>Objects by class</h2>
+              </div>
             </div>
-
-            <div className="card-subtitle">
-              Number of objects detected by category
+            <div className="analytics-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={classCounts} margin={{ top: 8, right: 12, bottom: 36, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="class_name"
+                    angle={-30}
+                    textAnchor="end"
+                    interval={0}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Detections" radius={[5, 5, 0, 0]}>
+                    {classCounts.map((entry, index) => (
+                      <Cell key={entry.class_name} fill={chartColors[index % chartColors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </div>
+          </article>
+          <article className="workbench-panel analytics-chart-card">
+            <div className="dashboard-section-heading">
+              <div>
+                <p className="panel-kicker">SHARE OF RESULTS</p>
+                <h2>Detection distribution</h2>
+              </div>
+            </div>
+            <div className="analytics-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={classCounts}
+                    dataKey="count"
+                    nameKey="class_name"
+                    cx="50%"
+                    cy="48%"
+                    outerRadius={112}
+                    label={({ name, percent }) =>
+                      `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                  >
+                    {classCounts.map((entry, index) => (
+                      <Cell key={entry.class_name} fill={chartColors[index % chartColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </article>
         </div>
-
-        <div className="chart-container">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="#edf0f4"
-              />
-
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                fontSize={10}
-              />
-
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                fontSize={10}
-              />
-
-              <Tooltip />
-
-              <Bar
-                dataKey="value"
-                fill="#2563eb"
-                radius={[6,6,0,0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+      ) : (
+        <div className="map-empty-state">
+          <strong>No persisted detections to chart.</strong>
+          <span>Upload an image and run a model to populate class analytics.</span>
         </div>
-      </div>
+      )}
+
+      {summary && (
+        <p className="analytics-category-note">
+          People/pedestrians group: {summary.category_definitions.pedestrians.join(", ")}.
+          Motor-vehicle group: {summary.category_definitions.vehicles.join(", ")}.
+          Bicycle counts remain separate.
+        </p>
+      )}
     </div>
   );
 }
 
-function MiniStat({
+function AnalyticsStat({
   icon,
   title,
   value,
+  loading,
 }: {
   icon: React.ReactNode;
   title: string;
-  value: string;
+  value: number | string | undefined;
+  loading: boolean;
 }) {
   return (
-    <div className="card stat-card">
-      <div className="stat-icon">{icon}</div>
-
-      <div className="stat-value">{value}</div>
-
-      <div className="stat-label">{title}</div>
-    </div>
+    <article className="workbench-panel analytics-stat-card">
+      <span className="analytics-stat-icon">{icon}</span>
+      <span>{title}</span>
+      <strong>
+        {value === undefined
+          ? loading ? "Loading…" : "Unavailable"
+          : typeof value === "number" ? value.toLocaleString() : value}
+      </strong>
+    </article>
   );
 }

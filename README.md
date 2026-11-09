@@ -2,6 +2,9 @@
 
 FastAPI backend for drone image upload, EXIF/GPS metadata extraction, YOLO object detection, SQLAlchemy persistence, and a React/Vite frontend. PostgreSQL with PostGIS is the intended production database. Development and isolated tests can use SQLite.
 
+For verified Windows environment installation, database configuration, model
+checks, application startup, and test commands, see [LOCAL_SETUP.md](LOCAL_SETUP.md).
+
 ## Model & Dataset Strategy
 
 ### IMPLEMENTED
@@ -10,9 +13,10 @@ FastAPI backend for drone image upload, EXIF/GPS metadata extraction, YOLO objec
 - Baseline dataset: the project-supplied two-class VisDrone-derived dataset under `dataset/` with train/val/test splits.
 - Current model: YOLO11n pretrained backbone trained in `runs/drone_person_vehicle/weights/best.pt`.
 - Baseline training configuration: `dataset/data.yaml` defines the verified class list and the project keeps the baseline model as `drone_person_vehicle`.
-- Optional ten-class mode: select `model_version=visdrone10_yolo11n` to load `runs/visdrone10_yolo11n/weights/best.pt`, which uses the dedicated `dataset_visdrone10_yolo/data.yaml` class order: `pedestrian`, `people`, `bicycle`, `car`, `van`, `truck`, `tricycle`, `awning-tricycle`, `bus`, `motor`. The baseline remains the default and its checkpoint is unchanged.
-- The ten-class checkpoint currently present in this workspace records epoch 5 of a 100-epoch run (six epochs in its training log); treat it as an available integration artifact, not as evidence of completed training or validated model quality.
-- Set `VISDRONE10_MODEL_PATH` to override the ten-class checkpoint path. Relative values are resolved from the project root; the default is `runs/visdrone10_yolo11n/weights/best.pt`.
+- Optional ten-class mode: select `model_version=visdrone10_yolo11n` to load `backend/app/models/weights/visdrone10_yolo11n_best.pt`. Its class order is `pedestrian`, `people`, `bicycle`, `car`, `van`, `truck`, `tricycle`, `awning-tricycle`, `bus`, `motor`; the baseline remains the default and its checkpoint is unchanged. The supplied `last.pt` is retained as `visdrone10_yolo11n_last.pt`.
+- Training metadata from the supplied model is retained under `backend/app/models/visdrone10_training/`. Its `final_metrics.json` records precision `0.459`, recall `0.33`, mAP50 `0.329`, and mAP50-95 `0.183`; these are the artifact's reported metrics, not independently reproduced validation results.
+- Set `VISDRONE10_MODEL_PATH` to override the ten-class checkpoint path. Relative values are resolved from the project root; the default is `backend/app/models/weights/visdrone10_yolo11n_best.pt`.
+- The supplied `visdrone10_best_model.pkl` statically identifies an Ultralytics `DetectionModel` pickle, but it is not loaded or enabled. Pickle deserialization can execute code, and its trusted provenance, environment/version, class metadata, and preprocessing/inference contract are not established. Obtain these details or a documented inference checkpoint from its source before enabling it.
 - Current recorded metrics: the baseline run in `runs/drone_person_vehicle/results.csv` reports precision `0.63156`, recall `0.44119`, mAP50 `0.48010`, and mAP50-95 `0.25045` for the available two-class setup.
 - The backend stores image GPS/time metadata and keeps every detection traceable to its source image and model version.
 - The API supports confidence-threshold filtering on retrieval without deleting the stored detections.
@@ -122,6 +126,7 @@ GET http://127.0.0.1:8000/api/health
 - `POST /api/images/upload` uploads an image and extracts available metadata.
 - `GET /api/images/` lists image records.
 - `GET /api/images/{image_id}` returns image metadata.
+- `GET /api/analysis/models` lists supported model IDs, framework, class count, and weight availability without exposing filesystem paths.
 - `POST /api/analysis/detect/{image_id}` runs YOLO and replaces that image's stored detections.
 - `GET /api/analysis/detections/{image_id}` returns persisted detections without rerunning YOLO.
 - `GET /api/surveys/` and survey routes manage surveys.
@@ -135,6 +140,10 @@ with a query parameter:
 ```text
 POST /api/analysis/detect/123?model_version=visdrone10_yolo11n
 ```
+
+Check available models with `GET /api/analysis/models`. The detection endpoint
+defaults to `baseline`; select the received ten-class weights with the query
+parameter shown above.
 
 The response includes the selected class list and detections with `class_id`,
 `class_name`, `confidence`, and `bbox` (`x1`, `y1`, `x2`, `y2`). Coordinates are

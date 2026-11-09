@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard,
   Map,
@@ -108,15 +108,15 @@ function Sidebar() {
           const active = location.pathname === item.path;
 
           return (
-            <a
+            <Link
               key={item.path}
-              href={item.path}
+              to={item.path}
               className={`nav-item ${active ? "active" : ""}`}
               title={collapsed ? item.name : ""}
             >
               <Icon size={19} />
               {!collapsed && <span>{item.name}</span>}
-            </a>
+            </Link>
           );
         })}
       </div>
@@ -124,15 +124,15 @@ function Sidebar() {
       <div className="sidebar-bottom">
         {!collapsed && <div className="nav-label">SYSTEM</div>}
 
-        <a
-          href="/settings"
+        <Link
+          to="/settings"
           className={`nav-item ${
             location.pathname === "/settings" ? "active" : ""
           }`}
         >
           <Settings size={19} />
           {!collapsed && <span>Settings</span>}
-        </a>
+        </Link>
 
       </div>
     </aside>

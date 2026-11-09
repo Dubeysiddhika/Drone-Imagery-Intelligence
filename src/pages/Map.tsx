@@ -1,205 +1,188 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
 import {
-  Layers3,
-  LocateFixed,
-  ZoomIn,
-  ZoomOut,
-  Navigation,
-  Car,
-  UserRound,
-  Building2,
-} from "lucide-react";
+  getApiErrorMessage,
+  listImages,
+  type ImageMetadata,
+} from "../services/api";
+
+const imageMarkerIcon = L.divIcon({
+  className: "image-map-marker",
+  html: "<span></span>",
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+type LocatedImage = ImageMetadata & { latitude: number; longitude: number };
+
+function hasValidGps(image: ImageMetadata): image is LocatedImage {
+  return image.latitude !== null &&
+    image.longitude !== null &&
+    Number.isFinite(image.latitude) &&
+    Number.isFinite(image.longitude) &&
+    image.latitude >= -90 &&
+    image.latitude <= 90 &&
+    image.longitude >= -180 &&
+    image.longitude <= 180;
+}
+
+function FitImageMarkers({ images }: { images: LocatedImage[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (images.length === 1) {
+      map.setView([images[0].latitude, images[0].longitude], 12);
+      return;
+    }
+    map.fitBounds(
+      L.latLngBounds(images.map((image) => [image.latitude, image.longitude])),
+      { padding: [36, 36], maxZoom: 12 },
+    );
+  }, [images, map]);
+
+  return null;
+}
+
+function formatCaptureTime(value: string | null | undefined): string {
+  if (!value) return "Not available";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
 
 export default function MapPage() {
+  const [images, setImages] = useState<ImageMetadata[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    listImages()
+      .then((result) => {
+        if (active) setImages(result);
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(getApiErrorMessage(requestError));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const locatedImages = useMemo(() => images.filter(hasValidGps), [images]);
+  const imagesWithoutGps = useMemo(
+    () => images.filter((image) => !hasValidGps(image)),
+    [images],
+  );
+  const mapCenter = useMemo<[number, number] | null>(() => {
+    if (locatedImages.length === 0) return null;
+    const coordinates = locatedImages.reduce(
+      (total, image) => [
+        total[0] + (image.latitude ?? 0),
+        total[1] + (image.longitude ?? 0),
+      ],
+      [0, 0],
+    );
+    return [
+      coordinates[0] / locatedImages.length,
+      coordinates[1] / locatedImages.length,
+    ];
+  }, [locatedImages]);
+
   return (
-    <div>
-      <div className="page-header">
+    <div className="map-workspace">
+      <header className="dashboard-heading">
         <div>
-          <h1 className="page-title">Geospatial Intelligence</h1>
-          <p className="page-description">
-            Explore detected objects and survey locations spatially.
+          <p className="dashboard-eyebrow">GEOSPATIAL INTELLIGENCE / IMAGE LOCATIONS</p>
+          <h1>Image Capture Map</h1>
+          <p>
+            Markers show image capture coordinates from EXIF metadata. Object
+            boxes are not geographic positions.
           </p>
         </div>
-      </div>
+        <div className="map-record-count">
+          {locatedImages.length} located · {imagesWithoutGps.length} without GPS
+        </div>
+      </header>
 
-      <div className="full-map">
-        <div className="map-control">
-          <h3>Detection Layers</h3>
+      {error && <div className="dashboard-inline-error" role="alert">{error}</div>}
 
-          <Filter
-            icon={<Car size={13} />}
-            name="Vehicles"
-            checked
-          />
-
-          <Filter
-            icon={<UserRound size={13} />}
-            name="People"
-            checked
-          />
-
-          <Filter
-            icon={<Building2 size={13} />}
-            name="Buildings"
-            checked
-          />
-
-          <div
-            style={{
-              borderTop: "1px solid #edf0f3",
-              marginTop: 10,
-              paddingTop: 12,
-            }}
+      {loading ? (
+        <div className="map-empty-state" role="status">Loading image locations…</div>
+      ) : locatedImages.length > 0 && mapCenter ? (
+        <div className="image-location-map" aria-label="Map of image capture locations">
+          <MapContainer
+            center={mapCenter}
+            zoom={10}
+            scrollWheelZoom
+            className="leaflet-map"
           >
-            <div className="filter-row">
-              <span>Confidence</span>
-              <strong>75%</strong>
-            </div>
-
-            <input
-              type="range"
-              min="0"
-              max="100"
-              defaultValue="75"
-              style={{ width: "100%" }}
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-          </div>
+            <FitImageMarkers images={locatedImages} />
+            {locatedImages.map((image) => (
+              <Marker
+                key={image.image_id}
+                position={[image.latitude, image.longitude]}
+                icon={imageMarkerIcon}
+              >
+                <Popup>
+                  <div className="map-image-popup">
+                    <strong>{image.filename}</strong>
+                    <span>Captured: {formatCaptureTime(image.capture_time ?? image.captured_at)}</span>
+                    <span>Stored detections: {image.detection_count ?? 0}</span>
+                    <Link to={`/analysis?image_id=${image.image_id}`}>
+                      Open image analysis
+                    </Link>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
         </div>
-
-        <div
-          style={{
-            position: "absolute",
-            right: 18,
-            top: 18,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            zIndex: 3,
-          }}
-        >
-          <MapButton icon={<ZoomIn size={16} />} />
-          <MapButton icon={<ZoomOut size={16} />} />
-          <MapButton icon={<LocateFixed size={16} />} />
-          <MapButton icon={<Layers3 size={16} />} />
+      ) : (
+        <div className="map-empty-state">
+          <strong>No images have valid GPS coordinates.</strong>
+          <span>Images without GPS are listed below; no locations are inferred.</span>
         </div>
+      )}
 
-        <div
-          className="big-marker blue"
-          style={{ left: "47%", top: "38%" }}
-        />
-
-        <div
-          className="big-marker green"
-          style={{ left: "62%", top: "54%" }}
-        />
-
-        <div
-          className="big-marker orange"
-          style={{ left: "32%", top: "61%" }}
-        />
-
-        <div
-          className="big-marker blue"
-          style={{ left: "70%", top: "30%" }}
-        />
-
-        <div className="map-info-card">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <Navigation size={15} color="#2563eb" />
-
-            <strong style={{ fontSize: 12 }}>
-              Selected Detection
-            </strong>
+      <section className="workbench-panel map-unlocated-panel">
+        <div className="dashboard-section-heading">
+          <div>
+            <p className="panel-kicker">METADATA STATUS</p>
+            <h2>Images without GPS</h2>
           </div>
-
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              marginBottom: 6,
-            }}
-          >
-            Vehicle
-          </div>
-
-          <div
-            style={{
-              fontSize: 10,
-              color: "#6b7280",
-              lineHeight: 1.8,
-            }}
-          >
-            Confidence: <strong>94%</strong>
-            <br />
-            Latitude: 26.4499°
-            <br />
-            Longitude: 80.3319°
-            <br />
-            Image: DJI_00482.jpg
-          </div>
-
-          <button
-            className="secondary-button"
-            style={{
-              width: "100%",
-              marginTop: 12,
-            }}
-          >
-            View Image
-          </button>
+          <span className="map-record-count">{imagesWithoutGps.length} images</span>
         </div>
-      </div>
+        {imagesWithoutGps.length ? (
+          <div className="map-unlocated-list">
+            {imagesWithoutGps.map((image) => (
+              <div key={image.image_id}>
+                <span>{image.filename}</span>
+                <small>Capture coordinates unavailable</small>
+                <Link to={`/analysis?image_id=${image.image_id}`}>Review image</Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="dashboard-empty-note">
+            {images.length === 0 ? "No images have been uploaded." : "All uploaded images have valid GPS coordinates."}
+          </p>
+        )}
+      </section>
+      <p className="map-attribution-note">
+        Map tiles are provided by OpenStreetMap. Image locations indicate capture
+        positions only, not the locations of detected objects.
+      </p>
     </div>
-  );
-}
-
-function Filter({
-  icon,
-  name,
-  checked,
-}: {
-  icon: React.ReactNode;
-  name: string;
-  checked: boolean;
-}) {
-  return (
-    <div className="filter-row">
-      <div className="filter-left">
-        <input
-          className="filter-checkbox"
-          type="checkbox"
-          defaultChecked={checked}
-        />
-
-        {icon}
-
-        <span>{name}</span>
-      </div>
-    </div>
-  );
-}
-
-function MapButton({ icon }: { icon: React.ReactNode }) {
-  return (
-    <button
-      style={{
-        width: 35,
-        height: 35,
-        border: "1px solid #e3e8ee",
-        background: "white",
-        borderRadius: 8,
-        display: "grid",
-        placeItems: "center",
-        color: "#475569",
-      }}
-    >
-      {icon}
-    </button>
   );
 }

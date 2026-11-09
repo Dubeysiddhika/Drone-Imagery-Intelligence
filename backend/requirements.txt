@@ -2,9 +2,11 @@ fastapi
 uvicorn[standard]
 python-multipart
 ultralytics
+pi-heif
 sqlalchemy
 pillow
 psycopg[binary]
 GeoAlchemy2
 python-dotenv
 PyYAML
+httpx

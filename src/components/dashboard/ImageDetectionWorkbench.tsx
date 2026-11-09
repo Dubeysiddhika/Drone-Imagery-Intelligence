@@ -2,18 +2,28 @@ import {
   AlertCircle,
   CheckCircle2,
   CloudUpload,
+  FileDown,
   Image as ImageIcon,
   LoaderCircle,
   MapPin,
   Info,
+  Eye,
+  EyeOff,
   RefreshCw,
   ScanLine,
   Trash2,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import {
+  getAvailableModels,
   getApiErrorMessage,
+  getImage,
+  getImagePreviewUrl,
+  getStoredDetections,
+  listImages,
   runDetection,
   uploadImage,
   type Detection,
@@ -25,12 +35,12 @@ import {
 type WorkflowPhase = "idle" | "uploading" | "detecting" | "complete" | "error";
 
 const supportedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".tif", ".tiff"]);
-const modelOptions: {
+const fallbackModelOptions: {
   value: DetectionModelVersion;
   label: string;
 }[] = [
   { value: "baseline", label: "Baseline · Person / vehicle" },
-  { value: "visdrone10_yolo11n", label: "VisDrone · 10 classes (development)" },
+  { value: "visdrone10_yolo11n", label: "VisDrone10 · 10 classes" },
 ];
 
 function formatConfidence(confidence: number): string {
@@ -50,10 +60,16 @@ function formatDateTime(value: string | null): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-function boxClass(className: string, classId: number): string {
+function boxClass(className: string, classId: number | null): string {
   if (className.toLowerCase() === "person") return "detection-person";
   if (className.toLowerCase() === "vehicle") return "detection-vehicle";
-  return `detection-class-${classId}`;
+  return `detection-class-${classId ?? 0}`;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export default function ImageDetectionWorkbench({
@@ -74,12 +90,66 @@ export default function ImageDetectionWorkbench({
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.35);
+  const [storedImages, setStoredImages] = useState<ImageMetadata[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [selectedStoredImage, setSelectedStoredImage] = useState("");
+  const [availableModelOptions, setAvailableModelOptions] = useState(fallbackModelOptions);
+  const [showBoxes, setShowBoxes] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
+  const [imageMode, setImageMode] = useState<"annotated" | "original">("annotated");
+  const [selectedDetectionId, setSelectedDetectionId] = useState<number | null>(null);
+  const [classSearch, setClassSearch] = useState("");
+  const [classFilter, setClassFilter] = useState("all");
+  const [sortByConfidence, setSortByConfidence] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    let active = true;
+    setHistoryLoading(true);
+    Promise.allSettled([listImages(), getAvailableModels()])
+      .then(([imageResult, modelResult]) => {
+        if (!active) return;
+        if (imageResult.status === "fulfilled") {
+          setStoredImages(imageResult.value);
+        } else {
+          setHistoryError(getApiErrorMessage(imageResult.reason));
+        }
+        if (modelResult.status === "fulfilled") {
+          const options = modelResult.value
+            .filter((model) => model.weights_available)
+            .map((model) => ({
+              value: model.model_id,
+              label: `${model.model_name} · ${model.class_count} classes`,
+            }));
+          if (options.length) setAvailableModelOptions(options);
+        } else if (active) {
+          setHistoryError(getApiErrorMessage(modelResult.reason));
+        }
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const refreshStoredImages = async () => {
+    try {
+      setStoredImages(await listImages());
+      setHistoryError("");
+    } catch (error) {
+      setHistoryError(getApiErrorMessage(error));
+    }
+  };
 
   const selectFile = (nextFile?: File) => {
     if (!nextFile) return;
@@ -90,6 +160,10 @@ export default function ImageDetectionWorkbench({
       setMetadata(null);
       setDetections([]);
       setDetectionResponse(null);
+      setSelectedDetectionId(null);
+      setImageMode("annotated");
+      setZoom(1);
+      setSelectedStoredImage("");
       if (inputRef.current) inputRef.current.value = "";
       setErrorMessage("Unsupported image format. Choose JPG, PNG, or TIFF.");
       setPhase("error");
@@ -101,6 +175,10 @@ export default function ImageDetectionWorkbench({
     setMetadata(null);
     setDetections([]);
     setDetectionResponse(null);
+    setSelectedDetectionId(null);
+    setImageMode("annotated");
+    setZoom(1);
+    setSelectedStoredImage("");
     setImageSize({ width: 0, height: 0 });
     setProgress(0);
     setErrorMessage("");
@@ -114,9 +192,17 @@ export default function ImageDetectionWorkbench({
     setPhase("detecting");
     setErrorMessage("");
     try {
-      const result = await runDetection(image.image_id || image.id, selectedModel);
-      setDetections(result.detections);
-      setDetectionResponse(result);
+      const imageId = image.image_id || image.id;
+      const result = await runDetection(imageId, selectedModel);
+      const storedResult = await getStoredDetections(imageId);
+      setDetections(storedResult.detections);
+      setDetectionResponse({
+        ...storedResult,
+        model_name: result.model_name,
+        model_version: result.model_version,
+        classes: result.classes,
+        coordinate_system: result.coordinate_system,
+      });
       setPhase("complete");
       onDetectionComplete?.();
     } catch (error) {
@@ -134,12 +220,68 @@ export default function ImageDetectionWorkbench({
     try {
       const uploadedImage = await uploadImage(file, setProgress);
       setMetadata(uploadedImage);
+      setPreviewUrl(getImagePreviewUrl(uploadedImage.image_id || uploadedImage.id));
+      await refreshStoredImages();
       await startDetection(uploadedImage, modelVersion);
     } catch (error) {
       setPhase("error");
       setErrorMessage(getApiErrorMessage(error));
     }
   };
+
+  const loadStoredImage = async (requestedImageId?: number) => {
+    const imageId = requestedImageId ?? Number(selectedStoredImage);
+    if (!Number.isInteger(imageId) || imageId <= 0) return;
+
+    setHistoryLoading(true);
+    setHistoryError("");
+    setErrorMessage("");
+    try {
+      const [storedImage, storedResult] = await Promise.all([
+        getImage(imageId),
+        getStoredDetections(imageId),
+      ]);
+      setFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+      setMetadata(storedImage);
+      setPreviewUrl(getImagePreviewUrl(imageId));
+      setDetections(storedResult.detections);
+      setDetectionResponse(
+        storedResult.model_version
+          ? {
+              ...storedResult,
+              classes: storedResult.model_version === "visdrone10_yolo11n"
+                ? [
+                    "pedestrian", "people", "bicycle", "car", "van",
+                    "truck", "tricycle", "awning-tricycle", "bus", "motor",
+                  ]
+                : ["person", "vehicle"],
+            }
+          : null,
+      );
+      setModelVersion(
+        storedResult.model_version === "visdrone10_yolo11n"
+          ? "visdrone10_yolo11n"
+          : "baseline",
+      );
+      setImageSize({ width: storedImage.width ?? 0, height: storedImage.height ?? 0 });
+      setSelectedDetectionId(null);
+      setImageMode("annotated");
+      setPhase(storedResult.model_version ? "complete" : "idle");
+    } catch (error) {
+      setHistoryError(getApiErrorMessage(error));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const imageId = Number(new URLSearchParams(window.location.search).get("image_id"));
+    if (Number.isInteger(imageId) && imageId > 0) {
+      setSelectedStoredImage(String(imageId));
+      void loadStoredImage(imageId);
+    }
+  }, []);
 
   const clearSelection = () => {
     setFile(null);
@@ -149,7 +291,11 @@ export default function ImageDetectionWorkbench({
     setDetectionResponse(null);
     setProgress(0);
     setErrorMessage("");
+    setSelectedDetectionId(null);
     setImageSize({ width: 0, height: 0 });
+    setSelectedStoredImage("");
+    setImageMode("annotated");
+    setZoom(1);
     setPhase("idle");
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -160,9 +306,17 @@ export default function ImageDetectionWorkbench({
     metadata?.longitude !== undefined;
   const width = imageSize.width || metadata?.width || 0;
   const height = imageSize.height || metadata?.height || 0;
-  const visibleDetections = detections.filter(
-    (detection) => detection.confidence >= confidenceThreshold,
-  );
+  const visibleDetections = detections
+    .filter((detection) => detection.confidence >= confidenceThreshold)
+    .filter((detection) => (
+      classFilter === "all" || detection.class_name === classFilter
+    ))
+    .filter((detection) => (
+      detection.class_name.toLowerCase().includes(classSearch.trim().toLowerCase())
+    ))
+    .sort((left, right) => (
+      sortByConfidence ? right.confidence - left.confidence : left.id - right.id
+    ));
   const averageConfidence = visibleDetections.length
     ? visibleDetections.reduce((total, detection) => total + detection.confidence, 0) /
       visibleDetections.length
@@ -171,9 +325,7 @@ export default function ImageDetectionWorkbench({
   const modelName = detectionResponse?.model_name ?? (
     modelVersion === "visdrone10_yolo11n" ? "YOLO11n VisDrone10" : "YOLO11n"
   );
-  const selectedModelVersion = modelVersion === "baseline"
-    ? "drone_person_vehicle"
-    : modelVersion;
+  const selectedModelVersion = modelVersion === "baseline" ? "drone_person_vehicle" : modelVersion;
   const reportedModelVersion = detectionResponse?.model_version ?? (
     modelVersion === "baseline" ? "drone_person_vehicle" : modelVersion
   );
@@ -182,6 +334,39 @@ export default function ImageDetectionWorkbench({
       ? ["pedestrian", "people", "bicycle", "car", "van", "truck", "tricycle", "awning-tricycle", "bus", "motor"]
       : ["person", "vehicle"]
   );
+  const needsServerPreview = Boolean(
+    file && /\.(tif|tiff)$/i.test(file.name) && !metadata,
+  );
+
+  const exportCsv = () => {
+    if (!metadata || visibleDetections.length === 0) return;
+    const columns = [
+      "detection_id", "image_id", "class_id", "class_name", "confidence",
+      "x1", "y1", "x2", "y2", "model_name", "model_version",
+    ];
+    const rows = visibleDetections.map((detection) => [
+      detection.id,
+      metadata.image_id || metadata.id,
+      detection.class_id,
+      detection.class_name,
+      detection.confidence,
+      detection.bbox.x1,
+      detection.bbox.y1,
+      detection.bbox.x2,
+      detection.bbox.y2,
+      detection.model_name ?? detectionResponse?.model_name ?? "",
+      detection.model_version ?? detectionResponse?.model_version ?? "",
+    ]);
+    const csv = [columns, ...rows]
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+      .join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `image-${metadata.image_id || metadata.id}-detections.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <section className="image-workbench" aria-label="Image upload and detection">
@@ -203,7 +388,7 @@ export default function ImageDetectionWorkbench({
               id="detection-model"
               value={modelVersion}
               onChange={(event) => {
-                const selectedModel = modelOptions.find(
+                const selectedModel = availableModelOptions.find(
                   (option) => option.value === event.currentTarget.value,
                 );
                 if (selectedModel) setModelVersion(selectedModel.value);
@@ -211,16 +396,46 @@ export default function ImageDetectionWorkbench({
               }}
               disabled={isBusy}
             >
-              {modelOptions.map((option) => (
+              {availableModelOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
             {modelVersion === "visdrone10_yolo11n" && (
               <p className="model-development-note">
                 <Info size={14} />
-                <span>Development model: the available checkpoint is from epoch 5 of a planned 100. Predictions are not validated or production-ready.</span>
+                <span>Supplied checkpoint metrics report mAP50 32.9% and mAP50–95 18.3%; these have not been independently reproduced.</span>
               </p>
             )}
+          </div>
+
+          <div className="stored-image-picker">
+            <label htmlFor="stored-image-select">Or reopen an uploaded image</label>
+            <div className="stored-image-controls">
+              <select
+                id="stored-image-select"
+                value={selectedStoredImage}
+                onChange={(event) => setSelectedStoredImage(event.target.value)}
+                disabled={isBusy || historyLoading || storedImages.length === 0}
+              >
+                <option value="">
+                  {historyLoading ? "Loading uploaded images…" : "Select an image"}
+                </option>
+                {storedImages.map((image) => (
+                  <option key={image.image_id} value={image.image_id}>
+                    #{image.image_id} · {image.filename}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void loadStoredImage()}
+                disabled={!selectedStoredImage || historyLoading || isBusy}
+              >
+                Load results
+              </button>
+            </div>
+            {historyError && <p className="history-error" role="alert">{historyError}</p>}
           </div>
 
           <input
@@ -266,42 +481,73 @@ export default function ImageDetectionWorkbench({
                 <div className="preview-file-name" title={file?.name ?? metadata?.filename}>
                   <ImageIcon size={15} />
                   <span>{file?.name ?? metadata?.filename}</span>
+                  {file && <small>{formatFileSize(file.size)}</small>}
                 </div>
-                <button
-                  type="button"
-                  className="subtle-icon-button"
-                  onClick={clearSelection}
-                  disabled={isBusy}
-                  aria-label="Remove selected image"
-                  title="Remove image"
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div className="preview-toolbar-actions">
+                  <button
+                    type="button"
+                    className={imageMode === "original" ? "subtle-toggle-button is-active" : "subtle-toggle-button"}
+                    onClick={() => setImageMode("original")}
+                    aria-pressed={imageMode === "original"}
+                  >
+                    Original
+                  </button>
+                  <button
+                    type="button"
+                    className={imageMode === "annotated" ? "subtle-toggle-button is-active" : "subtle-toggle-button"}
+                    onClick={() => setImageMode("annotated")}
+                    aria-pressed={imageMode === "annotated"}
+                  >
+                    Annotated
+                  </button>
+                  <button
+                    type="button"
+                    className="subtle-icon-button"
+                    onClick={clearSelection}
+                    disabled={isBusy}
+                    aria-label="Remove selected image"
+                    title="Remove image"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-              <figure className="detection-image-frame">
-                <img
-                  src={previewUrl}
-                  alt={`Preview of ${file?.name ?? metadata?.filename ?? "uploaded drone image"}`}
-                  onLoad={(event) => {
-                    setImageSize({
-                      width: event.currentTarget.naturalWidth,
-                      height: event.currentTarget.naturalHeight,
-                    });
-                  }}
-                  onError={() => {
-                    setErrorMessage("The selected file could not be decoded as an image.");
-                    setPhase("error");
-                  }}
-                />
-                {detections.length > 0 && width > 0 && height > 0 && (
+              <div className="detection-image-scroll">
+                <figure
+                  className="detection-image-frame"
+                  style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
+                >
+                  {needsServerPreview ? (
+                    <div className="server-preview-pending">
+                      TIFF preview will be available after upload.
+                    </div>
+                  ) : (
+                    <img
+                      src={previewUrl}
+                      alt={`Preview of ${file?.name ?? metadata?.filename ?? "uploaded drone image"}`}
+                      onLoad={(event) => {
+                        if (!metadata?.width || !metadata?.height) {
+                          setImageSize({
+                            width: event.currentTarget.naturalWidth,
+                            height: event.currentTarget.naturalHeight,
+                          });
+                        }
+                      }}
+                      onError={() => {
+                        setErrorMessage("The selected file could not be decoded as an image.");
+                        setPhase("error");
+                      }}
+                    />
+                  )}
+                {imageMode === "annotated" && visibleDetections.length > 0 && width > 0 && height > 0 && (
                   <svg
                     className="detection-overlay"
                     viewBox={`0 0 ${width} ${height}`}
                     preserveAspectRatio="none"
                     role="img"
-                    aria-label={`${detections.length} detected object bounding boxes`}
+                    aria-label={`${visibleDetections.length} detected object bounding boxes`}
                   >
-                    {detections.map((detection) => {
+                    {visibleDetections.map((detection) => {
                       const x1 = Math.max(0, Math.min(width, detection.bbox.x1));
                       const y1 = Math.max(0, Math.min(height, detection.bbox.y1));
                       const x2 = Math.max(x1, Math.min(width, detection.bbox.x2));
@@ -313,40 +559,101 @@ export default function ImageDetectionWorkbench({
                       const labelY = y1 >= labelHeight ? y1 - labelHeight : y1;
 
                       return (
-                        <g key={detection.id} className={boxClass(detection.class_name, detection.class_id)}>
-                          <rect
-                            className="detection-box"
-                            x={x1}
-                            y={y1}
-                            width={Math.max(0, x2 - x1)}
-                            height={Math.max(0, y2 - y1)}
-                            vectorEffect="non-scaling-stroke"
-                          />
-                          <rect
-                            x={x1}
-                            y={labelY}
-                            width={labelWidth}
-                            height={labelHeight}
-                            rx={fontSize * 0.18}
-                            className="detection-label-bg"
-                          />
-                          <text
-                            x={x1 + fontSize * 0.45}
-                            y={labelY + fontSize}
-                            fontSize={fontSize * 0.75}
-                            className="detection-label-text"
-                          >
-                            {label}
-                          </text>
+                        <g
+                          key={detection.id}
+                          className={`${boxClass(detection.class_name, detection.class_id)} ${selectedDetectionId === detection.id ? "is-selected" : ""}`}
+                        >
+                          {showBoxes && (
+                            <rect
+                              className="detection-box"
+                              x={x1}
+                              y={y1}
+                              width={Math.max(0, x2 - x1)}
+                              height={Math.max(0, y2 - y1)}
+                              vectorEffect="non-scaling-stroke"
+                            />
+                          )}
+                          {showLabels && (
+                            <>
+                              <rect
+                                x={x1}
+                                y={labelY}
+                                width={labelWidth}
+                                height={labelHeight}
+                                rx={fontSize * 0.18}
+                                className="detection-label-bg"
+                              />
+                              <text
+                                x={x1 + fontSize * 0.45}
+                                y={labelY + fontSize}
+                                fontSize={fontSize * 0.75}
+                                className="detection-label-text"
+                              >
+                                {label}
+                              </text>
+                            </>
+                          )}
                         </g>
                       );
                     })}
                   </svg>
                 )}
-              </figure>
+                </figure>
+              </div>
+              <div className="annotation-controls" aria-label="Image annotation controls">
+                <button
+                  type="button"
+                  className="subtle-toggle-button"
+                  onClick={() => setShowBoxes((visible) => !visible)}
+                  aria-pressed={showBoxes}
+                >
+                  {showBoxes ? <Eye size={14} /> : <EyeOff size={14} />}
+                  Boxes
+                </button>
+                <button
+                  type="button"
+                  className="subtle-toggle-button"
+                  onClick={() => setShowLabels((visible) => !visible)}
+                  aria-pressed={showLabels}
+                >
+                  {showLabels ? <Eye size={14} /> : <EyeOff size={14} />}
+                  Labels
+                </button>
+                <span className="annotation-control-spacer" />
+                <button
+                  type="button"
+                  className="subtle-icon-button"
+                  onClick={() => setZoom((current) => Math.max(1, current - 0.25))}
+                  disabled={zoom <= 1}
+                  aria-label="Zoom out"
+                >
+                  <ZoomOut size={15} />
+                </button>
+                <span className="zoom-level">{Math.round(zoom * 100)}%</span>
+                <button
+                  type="button"
+                  className="subtle-icon-button"
+                  onClick={() => setZoom((current) => Math.min(3, current + 0.25))}
+                  disabled={zoom >= 3}
+                  aria-label="Zoom in"
+                >
+                  <ZoomIn size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="subtle-toggle-button"
+                  onClick={() => setZoom(1)}
+                  disabled={zoom === 1}
+                >
+                  Fit
+                </button>
+              </div>
               <div className="preview-dimensions">
                 {width > 0 && height > 0 ? `${width} × ${height} px` : "Reading image dimensions…"}
-                {detections.length > 0 && <span>{detections.length} boxes overlaid</span>}
+                {file && <span>{formatFileSize(file.size)}</span>}
+                {!file && metadata?.detection_count !== undefined && (
+                  <span>{metadata.detection_count} saved detections</span>
+                )}
               </div>
             </div>
           )}
@@ -492,12 +799,54 @@ export default function ImageDetectionWorkbench({
               id="confidence-threshold"
               type="range"
               min="0"
-              max="0.95"
-              step="0.05"
+              max="1"
+              step="0.01"
               value={confidenceThreshold}
               onChange={(event) => setConfidenceThreshold(Number(event.target.value))}
             />
             <span>{formatConfidence(confidenceThreshold)}</span>
+          </div>
+
+          <div className="detection-table-controls">
+            <label>
+              <span>Search class</span>
+              <input
+                type="search"
+                value={classSearch}
+                onChange={(event) => setClassSearch(event.target.value)}
+                placeholder="e.g. pedestrian"
+                aria-label="Search detections by class"
+              />
+            </label>
+            <label>
+              <span>Filter class</span>
+              <select
+                value={classFilter}
+                onChange={(event) => setClassFilter(event.target.value)}
+                aria-label="Filter detections by class"
+              >
+                <option value="all">All classes</option>
+                {Array.from(new Set(detections.map((detection) => detection.class_name))).map((className) => (
+                  <option key={className} value={className}>{className}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="subtle-toggle-button"
+              onClick={() => setSortByConfidence((sorted) => !sorted)}
+              aria-pressed={sortByConfidence}
+            >
+              {sortByConfidence ? "Sort by ID" : "Sort by confidence"}
+            </button>
+            <button
+              type="button"
+              className="subtle-toggle-button"
+              onClick={exportCsv}
+              disabled={visibleDetections.length === 0}
+            >
+              <FileDown size={14} /> Export CSV
+            </button>
           </div>
 
           <div className="detection-legend" aria-label="Detection class colors">
@@ -533,18 +882,37 @@ export default function ImageDetectionWorkbench({
             <div className="detection-table-scroll">
               <table className="detection-table">
                 <thead>
-                  <tr><th>ID</th><th>Class</th><th>Confidence</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th></tr>
+                  <tr>
+                    <th>Detection ID</th><th>Class ID</th><th>Class</th>
+                    <th>Confidence</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th>
+                    <th>Model</th><th>Version</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {visibleDetections.map((detection) => (
-                    <tr key={detection.id}>
+                    <tr
+                      key={detection.id}
+                      className={selectedDetectionId === detection.id ? "is-selected" : ""}
+                      tabIndex={0}
+                      aria-selected={selectedDetectionId === detection.id}
+                      onClick={() => setSelectedDetectionId(detection.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedDetectionId(detection.id);
+                        }
+                      }}
+                    >
                       <td className="detection-id-cell">{detection.id}</td>
+                      <td>{detection.class_id}</td>
                       <td><span className={`class-pill ${boxClass(detection.class_name, detection.class_id)}`}>{detection.class_name}</span></td>
                       <td className="confidence-cell">{formatConfidence(detection.confidence)}</td>
                       <td>{detection.bbox.x1.toFixed(2)}</td>
                       <td>{detection.bbox.y1.toFixed(2)}</td>
                       <td>{detection.bbox.x2.toFixed(2)}</td>
                       <td>{detection.bbox.y2.toFixed(2)}</td>
+                      <td>{detection.model_name ?? modelName}</td>
+                      <td>{detection.model_version ?? reportedModelVersion}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -181,6 +181,22 @@ class DetectionPersistenceTests(unittest.TestCase):
         self.assertEqual(baseline["class_names"], ["person", "vehicle"])
         self.assertEqual(baseline["class_count"], 2)
 
+    def test_model_information_endpoint_lists_models_without_filesystem_paths(self):
+        response = self.client.get("/api/analysis/models")
+
+        self.assertEqual(response.status_code, 200)
+        models = response.json()["models"]
+        self.assertEqual(
+            [model["model_id"] for model in models],
+            ["baseline", "visdrone10_yolo11n"],
+        )
+        visdrone10 = models[1]
+        self.assertEqual(visdrone10["model_version"], "visdrone10_yolo11n")
+        self.assertEqual(visdrone10["framework"], "Ultralytics YOLO")
+        self.assertEqual(visdrone10["class_count"], 10)
+        self.assertTrue(visdrone10["weights_available"])
+        self.assertNotIn("model_path", visdrone10)
+
     def test_ten_class_model_selection_persists_ten_class_detection(self):
         model_results = [
             {
@@ -242,6 +258,48 @@ class DetectionPersistenceTests(unittest.TestCase):
             "visdrone10_yolo11n",
         )
         self.assertEqual(retrieval.json()["coordinate_system"], "pixel_xyxy")
+
+    @unittest.skipUnless(
+        Path(
+            get_model_metadata("visdrone10_yolo11n")["model_path"]
+        ).is_file(),
+        "Trained VisDrone10 YOLO weights are unavailable.",
+    )
+    def test_real_visdrone10_inference_and_repeated_persistence(self):
+        self.assertTrue(TEST_IMAGE.is_file(), f"Missing test image: {TEST_IMAGE}")
+
+        first_response = self.client.post(
+            f"/api/analysis/detect/{self.image_id}"
+            "?model_version=visdrone10_yolo11n"
+        )
+        second_response = self.client.post(
+            f"/api/analysis/detect/{self.image_id}"
+            "?model_version=visdrone10_yolo11n"
+        )
+
+        self.assertEqual(first_response.status_code, 200, first_response.text)
+        self.assertEqual(second_response.status_code, 200, second_response.text)
+        body = second_response.json()
+        self.assertEqual(body["model_version"], "visdrone10_yolo11n")
+        self.assertEqual(body["detection_count"], len(body["detections"]))
+        for detection in body["detections"]:
+            self.assertIn(detection["class_name"], body["classes"])
+            self.assertGreaterEqual(detection["confidence"], 0.0)
+            self.assertLessEqual(detection["confidence"], 1.0)
+            bbox = detection["bbox"]
+            self.assertLessEqual(bbox["x1"], bbox["x2"])
+            self.assertLessEqual(bbox["y1"], bbox["y2"])
+
+        with self.session_factory() as session:
+            rows = (
+                session.query(Detection)
+                .filter(Detection.image_id == self.image_id)
+                .all()
+            )
+            self.assertEqual(len(rows), body["detection_count"])
+            self.assertTrue(
+                all(row.model_version == "visdrone10_yolo11n" for row in rows)
+            )
 
     def test_unsupported_model_version_returns_bad_request(self):
         response = self.client.post(

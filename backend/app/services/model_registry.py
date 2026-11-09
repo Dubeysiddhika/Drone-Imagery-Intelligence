@@ -24,7 +24,7 @@ VISDRONE10_CLASS_NAMES = [
 def _visdrone10_model_path() -> Path:
     configured_path = os.environ.get(
         "VISDRONE10_MODEL_PATH",
-        "runs/visdrone10_yolo11n/weights/best.pt",
+        "backend/app/models/weights/visdrone10_yolo11n_best.pt",
     )
     path = Path(configured_path).expanduser()
     if not path.is_absolute():
@@ -41,6 +41,7 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
         ),
         "class_names": ["person", "vehicle"],
         "class_count": 2,
+        "framework": "Ultralytics YOLO",
         "description": "Baseline person + vehicle detector trained on the project VisDrone-derived dataset.",
     },
     "drone_person_vehicle": {
@@ -51,6 +52,7 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
         ),
         "class_names": ["person", "vehicle"],
         "class_count": 2,
+        "framework": "Ultralytics YOLO",
         "description": "Baseline person + vehicle detector trained on the project VisDrone-derived dataset.",
     },
     "visdrone10": {
@@ -59,6 +61,7 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
         "model_path": "",
         "class_names": VISDRONE10_CLASS_NAMES,
         "class_count": len(VISDRONE10_CLASS_NAMES),
+        "framework": "Ultralytics YOLO",
         "description": "Ten-class detector trained on the dedicated VisDrone ten-class dataset.",
     },
     "visdrone10_yolo11n": {
@@ -67,6 +70,7 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
         "model_path": "",
         "class_names": VISDRONE10_CLASS_NAMES,
         "class_count": len(VISDRONE10_CLASS_NAMES),
+        "framework": "Ultralytics YOLO",
         "description": "Ten-class detector trained on the dedicated VisDrone ten-class dataset.",
     },
 }
@@ -95,6 +99,24 @@ def get_model_metadata(model_version: str | None = None) -> dict[str, Any]:
         return metadata
 
     raise ValueError(f"Unsupported model version: {model_version}")
+
+
+def get_available_models() -> list[dict[str, Any]]:
+    """Return public model information without exposing local filesystem paths."""
+    models = []
+    for model_id in ("baseline", "visdrone10_yolo11n"):
+        metadata = get_model_metadata(model_id)
+        models.append(
+            {
+                "model_id": model_id,
+                "model_name": metadata["model_name"],
+                "model_version": metadata["model_version"],
+                "framework": metadata["framework"],
+                "class_count": metadata["class_count"],
+                "weights_available": Path(metadata["model_path"]).is_file(),
+            }
+        )
+    return models
 
 
 def get_default_model_version() -> str:
