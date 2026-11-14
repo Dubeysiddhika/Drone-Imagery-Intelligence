@@ -31,3 +31,8 @@ training/__pycache__/
 !/dataset_visdrone10_source/.gitkeep
 /dataset_visdrone10/
 /dataset_visdrone10_yolo/
+
+# UAV-VisLoc local source data and archives — keep outside GitHub
+/UAV_VisLoc_dataset/
+/UAV_VisLoc_dataset.zip
+/visdrone10_dataset.zip
