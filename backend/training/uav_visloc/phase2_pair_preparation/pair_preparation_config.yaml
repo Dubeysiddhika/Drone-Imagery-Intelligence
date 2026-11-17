@@ -1,0 +1,20 @@
+dataset_root: "E:/Drone-image-intelligence/UAV_VisLoc_dataset"
+phase1_output_dir: "E:/Drone-image-intelligence/backend/training/uav_visloc/phase1_validation/outputs"
+output_dir: "E:/Drone-image-intelligence/backend/training/uav_visloc/phase2_pair_preparation"
+
+# Conservative pair-generation settings.
+minimum_negative_distance_km: 75.0
+positive_pair_filter: "center_in_tile_bounds_only"
+validation_flights: ["05"]
+test_flights: ["02", "10"]
+train_flights: ["01", "03", "04", "08", "09", "11"]
+
+# Footprint estimation is intentionally conservative because the dataset does not document
+# camera intrinsics or focal length; actual footprint estimation remains a manual calibration task.
+footprint_estimation_required_fields:
+  - "altitude_m"
+  - "camera_focal_length_mm"
+  - "sensor_width_mm"
+  - "sensor_height_mm"
+  - "image_width_px"
+  - "image_height_px"

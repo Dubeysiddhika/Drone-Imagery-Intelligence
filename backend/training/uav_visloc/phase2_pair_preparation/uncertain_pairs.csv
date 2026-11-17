@@ -1,0 +1,9 @@
+drone_image_filename,flight_number,satellite_map_id,satellite_tile_id,drone_latitude,drone_longitude,pair_type,geographic_distance_km,coverage_status,overlap_or_coverage_status,source_capture_time_raw,source_height_m,source_omega,source_kappa,source_phi1,source_phi2,validation_status
+06_0093.JPG,06,satellite06.tif,,32.33920473,109.6614176,uncertain,,outside_validated_coverage,requires_manual_verification,2022-10-09T10:29:11,499.39,-1.569904,8.926682,-20.855664,44.324015,uncertain
+06_0094.JPG,06,satellite06.tif,,32.33920473,109.6614176,uncertain,,outside_validated_coverage,requires_manual_verification,2022-10-09T10:29:12,499.34,-1.730333,8.909494,-20.689506,-157.248267,uncertain
+06_0095.JPG,06,satellite06.tif,,32.33920473,109.6614176,uncertain,,outside_validated_coverage,requires_manual_verification,2022-10-09T10:29:14,499.31,-1.587093,8.898035,-20.517619,26.000825,uncertain
+06_0096.JPG,06,satellite06.tif,,32.33919327,109.6614062,uncertain,,outside_validated_coverage,requires_manual_verification,2022-10-09T10:39:23,498.57,-1.673037,9.035544,-7.620339,-91.140396,uncertain
+06_0097.JPG,06,satellite06.tif,,32.33919327,109.6614062,uncertain,,outside_validated_coverage,requires_manual_verification,2022-10-09T10:39:25,498.65,-1.541256,9.087111,-7.723471,-61.386698,uncertain
+06_0098.JPG,06,satellite06.tif,,32.33919327,109.6614062,uncertain,,outside_validated_coverage,requires_manual_verification,2022-10-09T10:39:28,498.65,-1.667307,9.035544,-7.855251,133.023611,uncertain
+07_0001.JPG,07,satellite07.tif,,40.33983238,115.799687,uncertain,,outside_validated_coverage,requires_manual_verification,2018071250114 ,689.56,,,,,uncertain
+07_0002.JPG,07,satellite07.tif,,40.33983817,115.7994137,uncertain,,outside_validated_coverage,requires_manual_verification,2018071250119 ,688.96,,,,,uncertain
