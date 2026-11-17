@@ -36,3 +36,10 @@ training/__pycache__/
 /UAV_VisLoc_dataset/
 /UAV_VisLoc_dataset.zip
 /visdrone10_dataset.zip
+
+# UAV-VisLoc Phase 3C generated image and feature caches
+/backend/training/uav_visloc/phase3_pretrained_setup/phase3c/satellite_tiles/
+/backend/training/uav_visloc/phase3_pretrained_setup/phase3c/global_features/
+/backend/training/uav_visloc/phase3_pretrained_setup/phase3c/local_features/
+/backend/training/uav_visloc/phase3_pretrained_setup/phase3c/metadata/
+/backend/training/uav_visloc/phase3_pretrained_setup/phase3c/reports/
