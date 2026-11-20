@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -161,6 +162,15 @@ class DroneImage(Base):
         nullable=True
     )
 
+    # Camera orientation (EXIF 1-8) and focal length in millimeters.
+    orientation = Column(Integer, nullable=True)
+    focal_length = Column(Float, nullable=True)
+    camera_make = Column(String(200), nullable=True)
+    camera_model = Column(String(200), nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    exif_available = Column(Boolean, nullable=True)
+
     # Time when image was uploaded to the platform
     uploaded_at = Column(
         DateTime,
@@ -275,6 +285,74 @@ class Detection(Base):
         "DroneImage",
         back_populates="detections"
     )
+
+
+class ProcessingRun(Base):
+    """Persisted operational history for detection and visual localization."""
+
+    __tablename__ = "processing_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=False, index=True)
+    pipeline = Column(String(40), nullable=False, index=True)
+    mode = Column(String(24), nullable=True)
+    status = Column(String(24), nullable=False, default="processing", index=True)
+    processing_seconds = Column(Float, nullable=True)
+    result_count = Column(Integer, nullable=True)
+    verified_count = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    result_json = Column(Text, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    image = relationship("DroneImage")
+
+
+class UAVVisLocImageMatch(Base):
+    """Verified association and complete source-row metadata for an uploaded image."""
+
+    __tablename__ = "uav_visloc_image_matches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(Integer, ForeignKey("images.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    status = Column(String(24), nullable=False, default="not_matched")
+    match_method = Column(String(48), nullable=True)
+    match_confidence = Column(Float, nullable=True)
+    flight_sequence = Column(String(12), nullable=True, index=True)
+    dataset_relative_path = Column(String(500), nullable=True)
+    metadata_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    image = relationship("DroneImage")
+
+
+class User(Base):
+    """Application account with normalized unique email and Argon2 password hash."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String(120), nullable=False)
+    normalized_email = Column(String(320), nullable=False, unique=True, index=True)
+    password_hash = Column(String(512), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    token_version = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PasswordResetToken(Base):
+    """Single-use hashed password-reset token with an explicit expiry."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    user = relationship("User")
 
 
 # ============================================================

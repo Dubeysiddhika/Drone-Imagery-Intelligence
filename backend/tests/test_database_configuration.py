@@ -14,6 +14,8 @@ from app.models.database import (
     Base,
     create_database_engine,
     ensure_image_location_column,
+    ensure_image_metadata_columns,
+    ensure_processing_run_columns,
     verify_postgis,
 )
 from app.models.models import Detection, DroneImage
@@ -132,6 +134,43 @@ class DatabaseConfigurationTests(unittest.TestCase):
                 for column in inspect(engine).get_columns("images")
             }
             self.assertIn("location", columns)
+        finally:
+            engine.dispose()
+
+    def test_existing_sqlite_images_table_gets_additive_exif_columns(self):
+        engine = create_engine("sqlite:///:memory:")
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("CREATE TABLE images (id INTEGER PRIMARY KEY, filename TEXT NOT NULL)")
+                )
+                connection.execute(text("INSERT INTO images (filename) VALUES ('kept.jpg')"))
+
+            ensure_image_metadata_columns(engine)
+            columns = {column["name"] for column in inspect(engine).get_columns("images")}
+            self.assertTrue({"orientation", "focal_length", "camera_make", "camera_model", "width", "height", "exif_available"}.issubset(columns))
+            self.assertEqual(engine.connect().execute(text("SELECT filename FROM images")).scalar_one(), "kept.jpg")
+        finally:
+            engine.dispose()
+
+    def test_existing_processing_runs_table_gets_nullable_mode_column(self):
+        engine = create_engine("sqlite:///:memory:")
+        try:
+            with engine.begin() as connection:
+                connection.execute(text(
+                    "CREATE TABLE processing_runs "
+                    "(id INTEGER PRIMARY KEY, image_id INTEGER NOT NULL, pipeline VARCHAR(40) NOT NULL)"
+                ))
+                connection.execute(text(
+                    "INSERT INTO processing_runs (image_id, pipeline) VALUES (7, 'localization')"
+                ))
+            ensure_processing_run_columns(engine)
+            columns = {column["name"] for column in inspect(engine).get_columns("processing_runs")}
+            self.assertTrue({"mode", "result_json"}.issubset(columns))
+            row = engine.connect().execute(text(
+                "SELECT image_id, pipeline, mode, result_json FROM processing_runs"
+            )).one()
+            self.assertEqual((row.image_id, row.pipeline, row.mode, row.result_json), (7, "localization", None, None))
         finally:
             engine.dispose()
 

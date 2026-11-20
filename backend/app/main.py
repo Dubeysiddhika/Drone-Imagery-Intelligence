@@ -1,15 +1,17 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import images, surveys, analysis, dashboard, uav_visloc
+from .routes import auth, images, surveys, analysis, dashboard, uav_visloc, detection, intelligence
+from .services.security import get_current_user
 
 from .models.database import (
     Base,
     engine,
     ensure_detection_columns,
     ensure_image_location_column,
+    ensure_image_metadata_columns,
+    ensure_processing_run_columns,
     verify_postgis,
 )
-from .routes import images, surveys, analysis, dashboard, uav_visloc
 
 
 
@@ -19,6 +21,8 @@ if engine.dialect.name == "postgresql":
 Base.metadata.create_all(bind=engine)
 ensure_detection_columns(engine)
 ensure_image_location_column(engine)
+ensure_image_metadata_columns(engine)
+ensure_processing_run_columns(engine)
 
 app = FastAPI(
     title="Drone Imagery Intelligence API",
@@ -42,6 +46,9 @@ app.add_middleware(
 )
 
 
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+
+
 # Root endpoint
 @app.get("/")
 def root():
@@ -63,7 +70,8 @@ def health():
 app.include_router(
     images.router,
     prefix="/api/images",
-    tags=["Images"]
+    tags=["Images"],
+    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -71,24 +79,30 @@ app.include_router(
 app.include_router(
     surveys.router,
     prefix="/api/surveys",
-    tags=["Surveys"]
+    tags=["Surveys"],
+    dependencies=[Depends(get_current_user)],
 )
 
 
 app.include_router(
     analysis.router,
     prefix="/api/analysis",
-    tags=["AI Analysis"]
+    tags=["AI Analysis"],
+    dependencies=[Depends(get_current_user)],
 )
 
 
 app.include_router(
     dashboard.router,
     prefix="/api/dashboard",
-    tags=["Dashboard"]
+    tags=["Dashboard"],
+    dependencies=[Depends(get_current_user)],
 )
 app.include_router(
     uav_visloc.router,
     prefix="/api/uav-visloc",
     tags=["UAV-VisLoc Dataset"],
+    dependencies=[Depends(get_current_user)],
 )
+app.include_router(detection.router, prefix="/api/detection", tags=["Detection"], dependencies=[Depends(get_current_user)])
+app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Image Intelligence"], dependencies=[Depends(get_current_user)])

@@ -24,7 +24,7 @@ VISDRONE10_CLASS_NAMES = [
 def _visdrone10_model_path() -> Path:
     configured_path = os.environ.get(
         "VISDRONE10_MODEL_PATH",
-        "backend/app/models/weights/visdrone10_yolo11n_best.pt",
+        "runs/visdrone10_yolo11n/weights/best.pt",
     )
     path = Path(configured_path).expanduser()
     if not path.is_absolute():

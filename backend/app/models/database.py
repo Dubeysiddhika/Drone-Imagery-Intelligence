@@ -93,6 +93,42 @@ def ensure_image_location_column(bind=engine) -> None:
             )
 
 
+def ensure_image_metadata_columns(bind=engine) -> None:
+    """Add nullable EXIF fields to existing image tables without changing rows."""
+    columns = {column["name"] for column in inspect(bind).get_columns("images")}
+    with bind.begin() as connection:
+        additions = {
+            "orientation": "INTEGER",
+            "focal_length": "FLOAT",
+            "camera_make": "VARCHAR(200)",
+            "camera_model": "VARCHAR(200)",
+            "width": "INTEGER",
+            "height": "INTEGER",
+            "exif_available": "BOOLEAN",
+        }
+        for name, sql_type in additions.items():
+            if name not in columns:
+                connection.execute(
+                    text(f"ALTER TABLE images ADD COLUMN {name} {sql_type}")
+                )
+
+
+def ensure_processing_run_columns(bind=engine) -> None:
+    """Add nullable UAV-VisLoc run metadata to existing processing history."""
+    if "processing_runs" not in inspect(bind).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(bind).get_columns("processing_runs")}
+    additions = {
+        "mode": "VARCHAR(24)",
+        "result_json": "TEXT",
+    }
+    missing = {name: sql_type for name, sql_type in additions.items() if name not in columns}
+    if missing:
+        with bind.begin() as connection:
+            for name, sql_type in missing.items():
+                connection.execute(text(f"ALTER TABLE processing_runs ADD COLUMN {name} {sql_type}"))
+
+
 def verify_postgis(bind=engine) -> str:
     """Verify the configured PostgreSQL database has PostGIS enabled."""
     if bind.dialect.name != "postgresql":

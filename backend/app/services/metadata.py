@@ -1,4 +1,5 @@
 from datetime import datetime
+import math
 from typing import Any, cast
 
 from PIL import Image
@@ -50,7 +51,7 @@ def extract_gps_values(gps: dict[str, Any]) -> tuple[float | None, float | None,
     try:
         latitude_degrees = convert_to_degrees(gps["GPSLatitude"])
         latitude_ref = _normalise_reference(gps.get("GPSLatitudeRef"))
-        if latitude_ref in {"N", "S"} and latitude_degrees <= 90:
+        if latitude_ref in {"N", "S"} and 0 <= latitude_degrees <= 90 and math.isfinite(latitude_degrees):
             latitude = -latitude_degrees if latitude_ref == "S" else latitude_degrees
     except (KeyError, TypeError, ValueError, OverflowError):
         pass
@@ -58,7 +59,7 @@ def extract_gps_values(gps: dict[str, Any]) -> tuple[float | None, float | None,
     try:
         longitude_degrees = convert_to_degrees(gps["GPSLongitude"])
         longitude_ref = _normalise_reference(gps.get("GPSLongitudeRef"))
-        if longitude_ref in {"E", "W"} and longitude_degrees <= 180:
+        if longitude_ref in {"E", "W"} and 0 <= longitude_degrees <= 180 and math.isfinite(longitude_degrees):
             longitude = -longitude_degrees if longitude_ref == "W" else longitude_degrees
     except (KeyError, TypeError, ValueError, OverflowError):
         pass
@@ -68,7 +69,9 @@ def extract_gps_values(gps: dict[str, Any]) -> tuple[float | None, float | None,
         try:
             altitude = _as_float(gps["GPSAltitude"])
             altitude_ref = _normalise_reference(gps.get("GPSAltitudeRef"))
-            if altitude_ref == 1 or altitude_ref == "1":
+            if not math.isfinite(altitude):
+                altitude = None
+            elif altitude_ref == 1 or altitude_ref == "1":
                 altitude = -altitude
             elif altitude_ref not in (None, 0, "0"):
                 altitude = None
@@ -112,6 +115,9 @@ def extract_metadata(filepath: str) -> dict[str, Any]:
         "width": None,
         "height": None,
         "exif_available": False,
+        "gps_available": False,
+        "orientation": None,
+        "focal_length": None,
     }
 
     try:
@@ -128,6 +134,12 @@ def extract_metadata(filepath: str) -> dict[str, Any]:
             }
             metadata["camera_make"] = _decode_text(decoded.get("Make"))
             metadata["camera_model"] = _decode_text(decoded.get("Model"))
+            try:
+                orientation = int(decoded["Orientation"])
+                if 1 <= orientation <= 8:
+                    metadata["orientation"] = orientation
+            except (KeyError, TypeError, ValueError, OverflowError):
+                pass
 
             try:
                 exif_ifd = exif.get_ifd(ExifTags.IFD.Exif)
@@ -143,6 +155,12 @@ def extract_metadata(filepath: str) -> dict[str, Any]:
                 or decoded.get("DateTime")
             )
             metadata["captured_at"] = _parse_capture_time(capture_value)
+            try:
+                focal_length = _as_float(exif_decoded["FocalLength"])
+                if focal_length > 0 and math.isfinite(focal_length):
+                    metadata["focal_length"] = focal_length
+            except (KeyError, TypeError, ValueError, OverflowError):
+                pass
 
             try:
                 gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
@@ -157,6 +175,10 @@ def extract_metadata(filepath: str) -> dict[str, Any]:
                 metadata["longitude"],
                 metadata["altitude"],
             ) = extract_gps_values(gps)
+            metadata["gps_available"] = (
+                metadata["latitude"] is not None
+                and metadata["longitude"] is not None
+            )
     except (OSError, ValueError, TypeError):
         return metadata
 

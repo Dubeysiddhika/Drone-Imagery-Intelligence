@@ -4,9 +4,9 @@
 
 The Phase 3C pipeline and georeferenced satellite patch set were created without modifying the source dataset or earlier phase outputs. All 14 source TIFFs were opened with Rasterio, and their CRS, dimensions, affine transforms, and bounds were carried into patch metadata. Flight 09's four originals were verified as adjoining cells in a gap-free 2×2 EPSG:4326 arrangement.
 
-The 512-pixel, 20%-overlap tiler produced **30,485** JPEG patches and a tracked metadata CSV. DINOv2 CPU extraction is complete for all 30,485 patches; the complete normalized NumPy index passed descriptor and geospatial-metadata validation. SuperPoint extraction was started only after DINOv2 completed and is continuing from checkpoints; its latest recorded progress is 7,232/30,485 patches. Both feature pipelines are resumable.
+The 512-pixel, 20%-overlap tiler produced **30,485** JPEG patches and a tracked metadata CSV. DINOv2 CPU extraction is complete for all 30,485 patches; the complete normalized NumPy index passed descriptor and geospatial-metadata validation. SuperPoint extraction was started only after DINOv2 completed and resumed from its existing checkpoint; verified progress is 12,421/30,485 patches after the latest memory-safe stop. Both feature pipelines are resumable.
 
-**Final assessment: Phase 3C is INCOMPLETE.** The DINOv2 retrieval index is complete and validated, and the full-index five-flight retrieval experiment is recorded in [retrieval_validation.csv](./retrieval_validation.csv). Full SuperPoint extraction remains incomplete (23,253 patches missing at the latest checkpoint); allow its resumable worker to continue before declaring the full Phase 3C feature suite complete. Retrieval rankings are not localization accuracy. See [PHASE3C_FINAL_REPORT.md](./PHASE3C_FINAL_REPORT.md) for the current status.
+**Final assessment: Phase 3C is INCOMPLETE.** The DINOv2 retrieval index is complete and validated, and the full-index five-flight retrieval experiment is recorded in [retrieval_validation.csv](./retrieval_validation.csv). Full SuperPoint extraction remains incomplete (18,064 patches missing at the latest verified checkpoint); allow its resumable worker to continue before declaring the full Phase 3C feature suite complete. Retrieval rankings are not localization accuracy. See [PHASE3C_FINAL_REPORT.md](./PHASE3C_FINAL_REPORT.md) for the current status.
 
 ## Previous phases and input reuse
 
@@ -80,7 +80,7 @@ The generated JPEG cache occupies approximately **2.95 GB** locally. The require
 - Pretrained LightGlue SuperPoint weights; CPU, evaluation mode, `torch.inference_mode()`.
 - Tile input capped at 512 pixels on the long side; up to 512 keypoints per patch.
 - Compressed NumPy shards store tile IDs, image dimensions, per-tile offsets, `(x, y, score)` keypoints, and 256-D descriptors.
-- Full extraction was started after DINOv2 and has reached **7,232 / 30,485** patches (7,224 newly extracted; 8 reused from the pilot), with zero failures. The resumable process remains active. See [superpoint_extraction_report.md](./superpoint_extraction_report.md).
+- Full extraction was started after DINOv2 and resumed from the existing checkpoint. It has reached **12,421 / 30,485** patches with 18,064 missing, 0 duplicate, 0 unknown, 0 unreadable/invalid shards, and zero failures. The latest run added 2,908 patches and reused 9,513 existing patches. See [superpoint_extraction_report.md](./superpoint_extraction_report.md).
 - Shards are atomic and resumable. Model/config signatures prevent reuse of shards generated with different preprocessing or settings.
 
 ### Index behavior
@@ -151,6 +151,6 @@ Rerunning an extractor skips valid, matching completed shards and recomputes an 
 
 ## Validation and final readiness
 
-Passed: all 14 TIFF inspections; Flight 09 adjacency check; generated count and unique IDs; representative affine/bounds checks; full DINOv2 feature count, dimension, finiteness, normalization, and unique metadata coverage; full-index build and geospatial validation; full-index top-five retrieval for all five flights; finite SuperPoint features for the 558 completed patches.
+Passed: all 14 TIFF inspections; Flight 09 adjacency check; generated count and unique IDs; representative affine/bounds checks; full DINOv2 feature count, dimension, finiteness, normalization, and unique metadata coverage; full-index build and geospatial validation; full-index top-five retrieval for all five flights; complete audit of 12,421 SuperPoint patches for unique IDs, 3-column keypoint shape, 256-D descriptor shape, and finite values.
 
 **Phase 4 localization readiness: No.** The DINOv2 retrieval index is complete and validated, but the SuperPoint cache is incomplete and the five-flight retrieval rankings are not localization accuracy. Resume SuperPoint and perform the downstream matching/geometric validation before declaring the full Phase 3C feature set complete or relying on it for localization.
