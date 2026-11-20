@@ -16,20 +16,27 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
+  API_BASE_URL,
   getAvailableModels,
   getApiErrorMessage,
   getImage,
+  getImageIntelligence,
   getImagePreviewUrl,
   getStoredDetections,
   listImages,
+  listSurveys,
+  processImageIntelligence,
   runDetection,
   uploadImage,
   type Detection,
   type DetectionModelVersion,
   type DetectionResponse,
   type ImageMetadata,
+  type ImageIntelligenceResponse,
+  type SurveyRecord,
 } from "../../services/api";
 
 type WorkflowPhase = "idle" | "uploading" | "detecting" | "complete" | "error";
@@ -77,13 +84,14 @@ export default function ImageDetectionWorkbench({
 }: {
   onDetectionComplete?: () => void;
 }) {
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [metadata, setMetadata] = useState<ImageMetadata | null>(null);
   const [detections, setDetections] = useState<Detection[]>([]);
   const [detectionResponse, setDetectionResponse] = useState<DetectionResponse | null>(null);
-  const [modelVersion, setModelVersion] = useState<DetectionModelVersion>("baseline");
+  const [modelVersion, setModelVersion] = useState<DetectionModelVersion>("visdrone10_yolo11n");
   const [phase, setPhase] = useState<WorkflowPhase>("idle");
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
@@ -91,6 +99,8 @@ export default function ImageDetectionWorkbench({
   const [isDragging, setIsDragging] = useState(false);
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.35);
   const [storedImages, setStoredImages] = useState<ImageMetadata[]>([]);
+  const [surveys, setSurveys] = useState<SurveyRecord[]>([]);
+  const [selectedSurveyId, setSelectedSurveyId] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [selectedStoredImage, setSelectedStoredImage] = useState("");
@@ -103,6 +113,8 @@ export default function ImageDetectionWorkbench({
   const [classFilter, setClassFilter] = useState("all");
   const [sortByConfidence, setSortByConfidence] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [autoLocalize, setAutoLocalize] = useState(true);
+  const [intelligence, setIntelligence] = useState<ImageIntelligenceResponse | null>(null);
 
   useEffect(() => {
     return () => {
@@ -113,8 +125,8 @@ export default function ImageDetectionWorkbench({
   useEffect(() => {
     let active = true;
     setHistoryLoading(true);
-    Promise.allSettled([listImages(), getAvailableModels()])
-      .then(([imageResult, modelResult]) => {
+    Promise.allSettled([listImages(), getAvailableModels(), listSurveys()])
+      .then(([imageResult, modelResult, surveyResult]) => {
         if (!active) return;
         if (imageResult.status === "fulfilled") {
           setStoredImages(imageResult.value);
@@ -132,6 +144,7 @@ export default function ImageDetectionWorkbench({
         } else if (active) {
           setHistoryError(getApiErrorMessage(modelResult.reason));
         }
+        if (surveyResult.status === "fulfilled") setSurveys(surveyResult.value);
       })
       .finally(() => {
         if (active) setHistoryLoading(false);
@@ -160,6 +173,7 @@ export default function ImageDetectionWorkbench({
       setMetadata(null);
       setDetections([]);
       setDetectionResponse(null);
+      setIntelligence(null);
       setSelectedDetectionId(null);
       setImageMode("annotated");
       setZoom(1);
@@ -175,6 +189,7 @@ export default function ImageDetectionWorkbench({
     setMetadata(null);
     setDetections([]);
     setDetectionResponse(null);
+    setIntelligence(null);
     setSelectedDetectionId(null);
     setImageMode("annotated");
     setZoom(1);
@@ -202,6 +217,35 @@ export default function ImageDetectionWorkbench({
         model_version: result.model_version,
         classes: result.classes,
         coordinate_system: result.coordinate_system,
+        annotated_image_url: result.annotated_image_url,
+      });
+      setIntelligence(await getImageIntelligence(imageId).catch(() => null));
+      setPhase("complete");
+      onDetectionComplete?.();
+    } catch (error) {
+      setPhase("error");
+      setErrorMessage(getApiErrorMessage(error));
+    }
+  };
+
+  const startFullImageIntelligence = async (image: ImageMetadata) => {
+    setPhase("detecting");
+    setErrorMessage("");
+    try {
+      const result = await processImageIntelligence(
+        image.image_id || image.id,
+        modelVersion,
+        autoLocalize,
+      );
+      setIntelligence(result);
+      setDetections(result.detection.detections);
+      setDetectionResponse(result.detection_run_response ?? {
+        image_id: result.image.image_id,
+        model_name: result.detection.detections[0]?.model_name ?? null,
+        model_version: result.detection.detections[0]?.model_version ?? null,
+        detection_count: result.detection.count,
+        detections: result.detection.detections,
+        annotated_image_url: result.detection.annotated_image_url ?? undefined,
       });
       setPhase("complete");
       onDetectionComplete?.();
@@ -218,11 +262,15 @@ export default function ImageDetectionWorkbench({
     setErrorMessage("");
 
     try {
-      const uploadedImage = await uploadImage(file, setProgress);
+      const uploadedImage = await uploadImage(
+        file,
+        setProgress,
+        selectedSurveyId ? Number(selectedSurveyId) : undefined,
+      );
       setMetadata(uploadedImage);
       setPreviewUrl(getImagePreviewUrl(uploadedImage.image_id || uploadedImage.id));
       await refreshStoredImages();
-      await startDetection(uploadedImage, modelVersion);
+      await startFullImageIntelligence(uploadedImage);
     } catch (error) {
       setPhase("error");
       setErrorMessage(getApiErrorMessage(error));
@@ -237,9 +285,10 @@ export default function ImageDetectionWorkbench({
     setHistoryError("");
     setErrorMessage("");
     try {
-      const [storedImage, storedResult] = await Promise.all([
+      const [storedImage, storedResult, storedIntelligence] = await Promise.all([
         getImage(imageId),
         getStoredDetections(imageId),
+        getImageIntelligence(imageId).catch(() => null),
       ]);
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -259,6 +308,7 @@ export default function ImageDetectionWorkbench({
             }
           : null,
       );
+      setIntelligence(storedIntelligence);
       setModelVersion(
         storedResult.model_version === "visdrone10_yolo11n"
           ? "visdrone10_yolo11n"
@@ -289,6 +339,7 @@ export default function ImageDetectionWorkbench({
     setMetadata(null);
     setDetections([]);
     setDetectionResponse(null);
+    setIntelligence(null);
     setProgress(0);
     setErrorMessage("");
     setSelectedDetectionId(null);
@@ -408,6 +459,21 @@ export default function ImageDetectionWorkbench({
             )}
           </div>
 
+          <div className="model-selector-block">
+            <label htmlFor="upload-survey">Associate with survey</label>
+            <select
+              id="upload-survey"
+              value={selectedSurveyId}
+              onChange={(event) => setSelectedSurveyId(event.currentTarget.value)}
+              disabled={isBusy}
+            >
+              <option value="">No survey</option>
+              {surveys.map((survey) => (
+                <option key={survey.id} value={survey.id}>{survey.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="stored-image-picker">
             <label htmlFor="stored-image-select">Or reopen an uploaded image</label>
             <div className="stored-image-controls">
@@ -523,7 +589,9 @@ export default function ImageDetectionWorkbench({
                     </div>
                   ) : (
                     <img
-                      src={previewUrl}
+                      src={imageMode === "annotated" && detectionResponse?.annotated_image_url
+                        ? `${API_BASE_URL}${detectionResponse.annotated_image_url}`
+                        : previewUrl}
                       alt={`Preview of ${file?.name ?? metadata?.filename ?? "uploaded drone image"}`}
                       onLoad={(event) => {
                         if (!metadata?.width || !metadata?.height) {
@@ -539,7 +607,7 @@ export default function ImageDetectionWorkbench({
                       }}
                     />
                   )}
-                {imageMode === "annotated" && visibleDetections.length > 0 && width > 0 && height > 0 && (
+                {imageMode === "annotated" && !detectionResponse?.annotated_image_url && visibleDetections.length > 0 && width > 0 && height > 0 && (
                   <svg
                     className="detection-overlay"
                     viewBox={`0 0 ${width} ${height}`}
@@ -667,7 +735,7 @@ export default function ImageDetectionWorkbench({
           {phase === "detecting" && (
             <div className="workflow-message workflow-processing" role="status">
               <LoaderCircle size={17} className="spin" />
-              <span>YOLO is processing the uploaded image…</span>
+              <span>Running image detection and eligible GPS-free localization…</span>
             </div>
           )}
           {phase === "complete" && (
@@ -699,7 +767,7 @@ export default function ImageDetectionWorkbench({
               <button
                 type="button"
                 className="workbench-primary-button"
-                onClick={() => void startDetection(metadata)}
+                onClick={() => void startFullImageIntelligence(metadata)}
                 disabled={isBusy}
               >
                 <RefreshCw size={16} /> Retry detection
@@ -718,6 +786,12 @@ export default function ImageDetectionWorkbench({
             {phase === "detecting" && (
               <span className="action-note"><LoaderCircle size={14} className="spin" /> Processing</span>
             )}
+            {file && !metadata && (
+              <label className="intelligence-localization-toggle">
+                <input type="checkbox" checked={autoLocalize} onChange={(event) => setAutoLocalize(event.currentTarget.checked)} />
+                Run GPS-free UAV-VisLoc for verified dataset images
+              </label>
+            )}
           </div>
         </article>
 
@@ -735,10 +809,13 @@ export default function ImageDetectionWorkbench({
                 <div><dt>Dimensions</dt><dd>{metadata.width && metadata.height ? `${metadata.width} × ${metadata.height} px` : "Not available"}</dd></div>
                 <div><dt>Latitude</dt><dd>{formatCoordinate(metadata.latitude)}</dd></div>
                 <div><dt>Longitude</dt><dd>{formatCoordinate(metadata.longitude)}</dd></div>
+                <div><dt>GPS available</dt><dd>{metadata.gps_available ? "Yes" : "No"}</dd></div>
                 <div><dt>Altitude</dt><dd>{metadata.altitude === null ? "Not available" : `${metadata.altitude.toFixed(2)} m`}</dd></div>
                 <div><dt>Capture time</dt><dd>{formatDateTime(metadata.capture_time ?? metadata.captured_at ?? null)}</dd></div>
                 <div><dt>Camera make</dt><dd>{metadata.camera_make ?? "Not available"}</dd></div>
                 <div><dt>Camera model</dt><dd>{metadata.camera_model ?? "Not available"}</dd></div>
+                <div><dt>Orientation</dt><dd>{metadata.orientation === null ? "Not available" : `EXIF ${metadata.orientation}`}</dd></div>
+                <div><dt>Focal length</dt><dd>{metadata.focal_length === null ? "Not available" : `${metadata.focal_length.toFixed(2)} mm`}</dd></div>
                 <div><dt>EXIF available</dt><dd>{metadata.exif_available ? "Yes" : "No"}</dd></div>
               </dl>
             ) : (
@@ -763,7 +840,40 @@ export default function ImageDetectionWorkbench({
               <div className="gps-unavailable"><MapPin size={17} /><span>GPS data unavailable.</span></div>
             )}
             <p className="geo-disclaimer">Object boxes are associated with the source image only. No ground coordinates are inferred.</p>
+            {intelligence && (
+              <div className="intelligence-coordinate-sources">
+                <h3>Coordinate sources</h3>
+                <p><strong>EXIF GPS:</strong> {intelligence.geospatial.exif_coordinate.available
+                  ? `${formatCoordinate(intelligence.geospatial.exif_coordinate.latitude)}, ${formatCoordinate(intelligence.geospatial.exif_coordinate.longitude)} · embedded image metadata`
+                  : "Unavailable"}</p>
+                <p><strong>Dataset ground truth:</strong> {intelligence.geospatial.dataset_ground_truth.available
+                  ? `${formatCoordinate(intelligence.geospatial.dataset_ground_truth.latitude)}, ${formatCoordinate(intelligence.geospatial.dataset_ground_truth.longitude)} · UAV-VisLoc dataset, EPSG:4326`
+                  : "Unavailable"}</p>
+                <p><strong>Predicted UAV position:</strong> Not available; this pipeline returns satellite candidates only.</p>
+              </div>
+            )}
           </article>
+
+          {intelligence && (
+            <article className="workbench-panel dataset-metadata-panel">
+              <div className="workbench-panel-heading compact-heading">
+                <div><p className="panel-kicker">VERIFIED DATASET RECORD</p><h2>UAV-VisLoc metadata</h2></div>
+              </div>
+              {intelligence.dataset_identity.status === "matched" && intelligence.dataset_metadata ? (
+                <>
+                  <p>Flight {intelligence.dataset_identity.flight_sequence} · {intelligence.dataset_identity.dataset_relative_path}</p>
+                  <p>Match: {intelligence.dataset_identity.method} ({Math.round((intelligence.dataset_identity.confidence ?? 0) * 100)}%); source {intelligence.dataset_identity.metadata_source_csv}</p>
+                  <dl className="metadata-list dataset-source-fields">
+                    {Object.entries(intelligence.dataset_metadata).map(([key, value]) => (
+                      <div key={key}><dt>{key}</dt><dd>{value === null || value === undefined || value === "" ? "Not available" : String(value)}</dd></div>
+                    ))}
+                  </dl>
+                </>
+              ) : (
+                <p className="panel-empty-note">No verified UAV-VisLoc dataset match ({intelligence.dataset_identity.status}). No dataset coordinates were assigned.</p>
+              )}
+            </article>
+          )}
         </aside>
       </div>
 
@@ -920,6 +1030,98 @@ export default function ImageDetectionWorkbench({
             </div>
           )}
         </section>
+      )}
+
+      {intelligence && metadata && (
+        <>
+          <section className="workbench-panel intelligence-localization-panel" aria-labelledby="intelligence-localization-heading">
+            <div className="results-heading-row">
+              <div className="workbench-panel-heading compact-heading"><div><p className="panel-kicker">GPS-FREE VISUAL RETRIEVAL</p><h2 id="intelligence-localization-heading">UAV-VisLoc results</h2></div></div>
+              <span>{intelligence.localization.status.replaceAll("_", " ")}</span>
+            </div>
+            {intelligence.localization.message && <p>{intelligence.localization.message}</p>}
+            <div className="localization-estimate-summary" role="status">
+              <strong>Geometric localization: {intelligence.geospatial.predicted_uav_coordinate.status?.replaceAll("_", " ") ?? "not available"}</strong>
+              {intelligence.geospatial.predicted_uav_coordinate.available
+                ? <span>Estimated image center: {intelligence.geospatial.predicted_uav_coordinate.latitude?.toFixed(6)}, {intelligence.geospatial.predicted_uav_coordinate.longitude?.toFixed(6)} · EPSG:4326</span>
+                : <span>{intelligence.geospatial.predicted_uav_coordinate.reason ?? intelligence.localization.localization_estimate?.reason ?? "No candidate passed geometric quality control; no predicted coordinates are reported."}</span>}
+              {intelligence.geospatial.localization_evaluation?.available && <span>Ground-truth error: {intelligence.geospatial.localization_evaluation.error_m?.toFixed(2)} m · within 5/10/25/50 m: {[
+                intelligence.geospatial.localization_evaluation.within_5m,
+                intelligence.geospatial.localization_evaluation.within_10m,
+                intelligence.geospatial.localization_evaluation.within_25m,
+                intelligence.geospatial.localization_evaluation.within_50m,
+              ].map((value) => value ? "yes" : "no").join(" / ")}</span>}
+              {intelligence.geospatial.localization_evaluation?.reason && <span>{intelligence.geospatial.localization_evaluation.reason}</span>}
+              {intelligence.geospatial.localization_evaluation?.note && <small>{intelligence.geospatial.localization_evaluation.note}</small>}
+            </div>
+            {intelligence.localization.candidates.length > 0 ? (
+              <>
+                <p>{intelligence.localization.candidates.length} ranked satellite candidates · {intelligence.localization.processing_time_seconds?.toFixed(1) ?? "—"} sec. Retrieval similarity is ranking evidence, not a localization fix.</p>
+                <div className="intelligence-candidates-grid">
+                  {intelligence.localization.candidates.slice(0, 5).map((candidate) => (
+                    <article key={candidate.satellite_tile_id} className="intelligence-candidate-card">
+                      <img src={`${API_BASE_URL}${candidate.preview_url}`} alt={`Satellite patch ${candidate.satellite_tile_id}`} loading="lazy" />
+                      <strong>#{candidate.rank} · {candidate.satellite_tile_id}</strong>
+                      <span>Similarity {candidate.similarity_score.toFixed(4)}</span>
+                      <span>{candidate.local_feature_match_count ?? "—"} matches · {candidate.ransac_inlier_count ?? "—"} inliers</span>
+                      <span>{candidate.verification_status.replaceAll("_", " ")}</span>
+                      {candidate.estimated_image_center?.status === "geometrically_verified" && <span>Image-center projection · {candidate.estimated_image_center.quality} quality · {candidate.estimated_image_center.median_reprojection_error_px?.toFixed(2)} px median error</span>}
+                      {candidate.estimated_image_center?.reason && <small>Projection rejected: {candidate.estimated_image_center.reason}</small>}
+                      <small>Satellite patch center: {candidate.latitude.toFixed(6)}, {candidate.longitude.toFixed(6)} · EPSG:4326</small>
+                    </article>
+                  ))}
+                </div>
+                <details className="intelligence-candidate-details">
+                  <summary>View all {intelligence.localization.candidates.length} ranked candidates</summary>
+                  <div className="detection-table-scroll">
+                    <table className="detection-table">
+                      <thead><tr><th>Rank</th><th>Satellite patch</th><th>Similarity</th><th>Matches</th><th>RANSAC inliers</th><th>Inlier ratio</th><th>Reprojection error</th><th>Estimated image center</th><th>Patch center (WGS84)</th><th>Verification</th></tr></thead>
+                      <tbody>{intelligence.localization.candidates.map((candidate) => (
+                        <tr key={candidate.satellite_tile_id}>
+                          <td>{candidate.rank}</td><td>{candidate.satellite_tile_id}</td>
+                          <td>{candidate.similarity_score.toFixed(4)}</td>
+                          <td>{candidate.local_feature_match_count ?? "—"}</td>
+                          <td>{candidate.ransac_inlier_count ?? "—"}</td>
+                          <td>{candidate.inlier_ratio === null ? "—" : candidate.inlier_ratio.toFixed(3)}</td>
+                          <td>{candidate.estimated_image_center?.median_reprojection_error_px == null ? "—" : `${candidate.estimated_image_center.median_reprojection_error_px.toFixed(2)} px`}</td>
+                          <td>{candidate.estimated_image_center?.status === "geometrically_verified" ? `${candidate.estimated_image_center.latitude?.toFixed(6)}, ${candidate.estimated_image_center.longitude?.toFixed(6)}` : candidate.estimated_image_center?.reason ?? "Not verified"}</td>
+                          <td>{candidate.latitude.toFixed(6)}, {candidate.longitude.toFixed(6)}</td>
+                          <td>{candidate.verification_status.replaceAll("_", " ")}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </details>
+                {intelligence.geospatial.satellite_candidate_region_rank_for_ground_truth_map !== null && (
+                  <p>Dataset ground-truth satellite region appears at candidate rank {intelligence.geospatial.satellite_candidate_region_rank_for_ground_truth_map} (evaluation only; ground truth was not used for retrieval).</p>
+                )}
+              </>
+            ) : <p className="panel-empty-note">No satellite candidates are stored for this image.</p>}
+            {(intelligence.localization.candidates.length > 0 || intelligence.geospatial.dataset_ground_truth.available || intelligence.geospatial.predicted_uav_coordinate.available) && (
+              <button type="button" className="subtle-toggle-button" onClick={() => navigate("/map", { state: {
+                localizationCandidates: intelligence.localization.candidates,
+                localizationMode: "gps_free",
+                datasetGroundTruth: intelligence.geospatial.dataset_ground_truth.available ? intelligence.geospatial.dataset_ground_truth : null,
+                localizationEstimate: intelligence.geospatial.predicted_uav_coordinate.available ? {
+                  ...intelligence.geospatial.predicted_uav_coordinate,
+                  error_m: intelligence.geospatial.localization_evaluation?.error_m ?? null,
+                } : null,
+                datasetImageId: metadata.image_id || metadata.id,
+              } })}>
+                View geospatial results on map
+              </button>
+            )}
+            <p className="geo-disclaimer">{intelligence.localization.note ?? "A predicted center is shown only when geometric checks pass. Candidate patch centers are not UAV positions."}</p>
+          </section>
+          <section className="workbench-panel intelligence-download-panel" aria-label="Image intelligence exports">
+            <strong>Processing summary:</strong> {intelligence.processing.runs.map((run) => `${run.pipeline} ${run.status}${run.processing_seconds === null ? "" : ` (${run.processing_seconds.toFixed(1)} sec)`}`).join(" · ") || "No processing runs recorded"}
+            <div className="intelligence-export-actions">
+              <a href={`${API_BASE_URL}/api/intelligence/images/${metadata.image_id || metadata.id}/export.json`}>Download JSON</a>
+              <a href={`${API_BASE_URL}/api/intelligence/images/${metadata.image_id || metadata.id}/export.csv`}>Download CSV</a>
+              <a href={`${API_BASE_URL}/api/intelligence/images/${metadata.image_id || metadata.id}/report.pdf`}>Download PDF report</a>
+            </div>
+          </section>
+        </>
       )}
     </section>
   );

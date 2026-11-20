@@ -114,11 +114,10 @@ class DetectorServiceTests(unittest.TestCase):
         classes_path = detector.PROJECT_ROOT / "backend" / "app" / "models" / "classes.json"
         weights_path = (
             detector.PROJECT_ROOT
-            / "backend"
-            / "app"
-            / "models"
+            / "runs"
+            / "visdrone10_yolo11n"
             / "weights"
-            / "visdrone10_yolo11n_best.pt"
+            / "best.pt"
         )
 
         self.assertEqual(Path(metadata["model_path"]), weights_path.resolve())

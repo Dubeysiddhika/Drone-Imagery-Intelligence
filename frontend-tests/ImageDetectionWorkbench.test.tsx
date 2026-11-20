@@ -2,6 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 import ImageDetectionWorkbench from "../src/components/dashboard/ImageDetectionWorkbench";
 import {
@@ -9,23 +10,31 @@ import {
   uploadImage,
   getAvailableModels,
   getImage,
+  getImageIntelligence,
   getImagePreviewUrl,
   getStoredDetections,
   listImages,
+  listSurveys,
+  processImageIntelligence,
   type DetectionResponse,
   type ImageMetadata,
+  type ImageIntelligenceResponse,
 } from "../src/services/api";
 
 vi.mock("../src/services/api", () => ({
+  API_BASE_URL: "http://127.0.0.1:8000",
   getApiErrorMessage: (error: unknown) =>
     error instanceof Error ? error.message : "Request failed",
   runDetection: vi.fn(),
   uploadImage: vi.fn(),
   getAvailableModels: vi.fn(),
   getImage: vi.fn(),
+  getImageIntelligence: vi.fn(),
   getImagePreviewUrl: vi.fn(),
   getStoredDetections: vi.fn(),
   listImages: vi.fn(),
+  listSurveys: vi.fn(),
+  processImageIntelligence: vi.fn(),
 }));
 
 const uploadedImage: ImageMetadata = {
@@ -34,12 +43,16 @@ const uploadedImage: ImageMetadata = {
   filename: "drone.png",
   latitude: null,
   longitude: null,
+  gps_available: false,
   altitude: null,
   capture_time: null,
   camera_make: null,
   camera_model: null,
   width: 640,
   height: 480,
+  orientation: null,
+  focal_length: null,
+  survey_id: null,
   exif_available: false,
 };
 
@@ -90,6 +103,30 @@ const visdrone10Response: DetectionResponse = {
   ],
 };
 
+const intelligenceResponse: ImageIntelligenceResponse = {
+  image: {
+    image_id: 42, original_filename: "drone.png", file_format: "PNG", file_size_bytes: 200,
+    width: 640, height: 480, exif_available: false, camera_make: null, camera_model: null,
+    focal_length_mm: null, orientation: null, capture_time: null,
+    exif_gps: { available: false, latitude: null, longitude: null, altitude_m: null, coordinate_source: null, coordinate_reference_system: null },
+    survey_id: null,
+  },
+  dataset_identity: { status: "not_matched", method: null, confidence: null, flight_sequence: null, dataset_relative_path: null, metadata_source_csv: null },
+  dataset_metadata: null,
+  geospatial: {
+    exif_coordinate: { available: false, latitude: null, longitude: null, altitude_m: null, coordinate_source: null, coordinate_reference_system: null },
+    dataset_ground_truth: { available: false, latitude: null, longitude: null, coordinate_reference_system: null, coordinate_source: null },
+    predicted_uav_coordinate: { available: false, latitude: null, longitude: null, coordinate_source: null, reason: "Candidate only" },
+    satellite_candidate_region_rank_for_ground_truth_map: null,
+    satellite_candidate_center_offsets_from_ground_truth: [], candidate_offsets_are_predictions: false,
+    coordinate_reference_system: "EPSG:4326",
+  },
+  detection: { status: "completed", count: 1, per_class_counts: [{ class_name: "awning-tricycle", count: 1 }], coordinate_system: "source_image_pixel_xyxy", annotated_image_url: "/api/images/42/annotated", original_image_url: "/api/images/42/preview", detections: visdrone10Response.detections, note: "Image coordinates only" },
+  localization: { status: "not_applicable", message: "Not a dataset image", candidates: [] },
+  processing: { runs: [] },
+  detection_run_response: visdrone10Response,
+};
+
 function chooseImage() {
   const file = new File(["fake image"], "drone.png", { type: "image/png" });
   fireEvent.change(screen.getByLabelText("Choose a drone image"), {
@@ -113,6 +150,7 @@ describe("ImageDetectionWorkbench", () => {
     vi.mocked(runDetection).mockResolvedValue(baselineResponse);
     vi.mocked(getStoredDetections).mockResolvedValue(baselineResponse);
     vi.mocked(listImages).mockResolvedValue([]);
+    vi.mocked(listSurveys).mockResolvedValue([]);
     vi.mocked(getAvailableModels).mockResolvedValue([
       {
         model_id: "baseline",
@@ -132,6 +170,8 @@ describe("ImageDetectionWorkbench", () => {
       },
     ]);
     vi.mocked(getImage).mockResolvedValue(uploadedImage);
+    vi.mocked(getImageIntelligence).mockResolvedValue(intelligenceResponse);
+    vi.mocked(processImageIntelligence).mockResolvedValue(intelligenceResponse);
     vi.mocked(getImagePreviewUrl).mockReturnValue(
       "http://127.0.0.1:8000/api/images/42/preview",
     );
@@ -142,35 +182,33 @@ describe("ImageDetectionWorkbench", () => {
     vi.restoreAllMocks();
   });
 
-  it("defaults to baseline, uploads and renders its detections and original-pixel boxes", async () => {
-    const { container } = render(<ImageDetectionWorkbench />);
+  it("defaults to VisDrone10, uploads and renders its detections and original-pixel boxes", async () => {
+    const { container } = render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
 
     expect(
       (screen.getByLabelText("Detection model") as HTMLSelectElement).value,
-    ).toBe("baseline");
+    ).toBe("visdrone10_yolo11n");
     const file = chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
 
     await screen.findByText("Detection complete. Results were returned by the backend.");
-    expect(uploadImage).toHaveBeenCalledWith(file, expect.any(Function));
-    expect(runDetection).toHaveBeenCalledWith(42, "baseline");
-    expect(screen.getAllByText("vehicle").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("91%").length).toBeGreaterThan(0);
+    expect(uploadImage).toHaveBeenCalledWith(file, expect.any(Function), undefined);
+    expect(processImageIntelligence).toHaveBeenCalledWith(42, "visdrone10_yolo11n", true);
+    expect(screen.getAllByText("awning-tricycle").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("87.5%").length).toBeGreaterThan(0);
 
     const overlay = container.querySelector("svg.detection-overlay");
     expect(overlay?.getAttribute("viewBox")).toBe("0 0 640 480");
     const box = container.querySelector(".detection-box");
-    expect(box?.getAttribute("x")).toBe("20");
-    expect(box?.getAttribute("y")).toBe("30");
-    expect(box?.getAttribute("width")).toBe("100");
-    expect(box?.getAttribute("height")).toBe("100");
-    expect(container.querySelector(".detection-vehicle")).toBeTruthy();
+    expect(box?.getAttribute("x")).toBe("30.5");
+    expect(box?.getAttribute("y")).toBe("40");
+    expect(box?.getAttribute("width")).toBe("149.5");
+    expect(box?.getAttribute("height")).toBe("170");
+    expect(container.querySelector(".detection-class-7")).toBeTruthy();
   });
 
   it("sends the ten-class selection, shows its status and renders all class labels", async () => {
-    vi.mocked(runDetection).mockResolvedValue(visdrone10Response);
-    vi.mocked(getStoredDetections).mockResolvedValue(visdrone10Response);
-    render(<ImageDetectionWorkbench />);
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
 
     fireEvent.change(screen.getByLabelText("Detection model"), {
       target: { value: "visdrone10_yolo11n" },
@@ -180,7 +218,7 @@ describe("ImageDetectionWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
 
     await screen.findByText("Detection complete. Results were returned by the backend.");
-    expect(runDetection).toHaveBeenCalledWith(42, "visdrone10_yolo11n");
+    expect(processImageIntelligence).toHaveBeenCalledWith(42, "visdrone10_yolo11n", true);
     expect(screen.getAllByText("awning-tricycle").length).toBeGreaterThan(0);
     expect(screen.getAllByText("87.5%").length).toBeGreaterThan(0);
     for (const className of visdrone10Response.classes ?? []) {
@@ -189,7 +227,14 @@ describe("ImageDetectionWorkbench", () => {
   });
 
   it("allows switching models after upload and offers an explicit rerun", async () => {
-    render(<ImageDetectionWorkbench />);
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
+    await screen.findByRole("option", { name: /Baseline/ });
+    fireEvent.change(screen.getByLabelText("Detection model"), { target: { value: "baseline" } });
+    vi.mocked(processImageIntelligence).mockResolvedValueOnce({
+      ...intelligenceResponse,
+      detection: { ...intelligenceResponse.detection, count: 1, detections: baselineResponse.detections },
+      detection_run_response: baselineResponse,
+    });
     chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
     await screen.findByText("Detection complete. Results were returned by the backend.");
@@ -212,7 +257,12 @@ describe("ImageDetectionWorkbench", () => {
     };
     vi.mocked(runDetection).mockResolvedValue(emptyResult);
     vi.mocked(getStoredDetections).mockResolvedValue(emptyResult);
-    render(<ImageDetectionWorkbench />);
+    vi.mocked(processImageIntelligence).mockResolvedValue({
+      ...intelligenceResponse,
+      detection: { ...intelligenceResponse.detection, status: "completed", count: 0, per_class_counts: [], detections: [] },
+      detection_run_response: emptyResult,
+    });
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
     chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
 
@@ -220,8 +270,8 @@ describe("ImageDetectionWorkbench", () => {
   });
 
   it("shows API failures and provides a retry action", async () => {
-    vi.mocked(runDetection).mockRejectedValue(new Error("Backend unavailable"));
-    render(<ImageDetectionWorkbench />);
+    vi.mocked(processImageIntelligence).mockRejectedValue(new Error("Backend unavailable"));
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
     chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
 
@@ -232,7 +282,7 @@ describe("ImageDetectionWorkbench", () => {
   });
 
   it("rejects unsupported image files before making API requests", () => {
-    render(<ImageDetectionWorkbench />);
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
     fireEvent.change(screen.getByLabelText("Choose a drone image"), {
       target: {
         files: [new File(["not an image"], "map.gif", { type: "image/gif" })],
@@ -247,25 +297,25 @@ describe("ImageDetectionWorkbench", () => {
   });
 
   it("shows a loading state during detection", async () => {
-    let resolveDetection!: (response: DetectionResponse) => void;
-    vi.mocked(runDetection).mockReturnValue(
+    let resolveDetection!: (response: ImageIntelligenceResponse) => void;
+    vi.mocked(processImageIntelligence).mockReturnValue(
       new Promise((resolve) => {
         resolveDetection = resolve;
       }),
     );
-    render(<ImageDetectionWorkbench />);
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
     chooseImage();
     fireEvent.click(screen.getByRole("button", { name: "Upload and analyze" }));
 
-    expect(await screen.findByText("YOLO is processing the uploaded image…")).toBeTruthy();
-    resolveDetection(baselineResponse);
+    expect(await screen.findByText("Running image detection and eligible GPS-free localization…")).toBeTruthy();
+    resolveDetection(intelligenceResponse);
     await screen.findByText("Detection complete. Results were returned by the backend.");
   });
 
   it("reopens a stored image and retrieves its persisted detections", async () => {
     vi.mocked(listImages).mockResolvedValue([uploadedImage]);
     vi.mocked(getStoredDetections).mockResolvedValue(visdrone10Response);
-    render(<ImageDetectionWorkbench />);
+    render(<MemoryRouter><ImageDetectionWorkbench /></MemoryRouter>);
 
     await waitFor(() => {
       expect(screen.getByRole("option", { name: /#42 · drone.png/ })).toBeTruthy();

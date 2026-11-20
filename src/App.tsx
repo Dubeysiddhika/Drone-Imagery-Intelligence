@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, Link, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Map,
@@ -11,15 +11,17 @@ import {
   Menu,
   Bell,
   Search,
-  ChevronDown,
   Database,
 } from "lucide-react";
 
 import { useState } from "react";
+import { useAuth } from "./contexts/AuthContext";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Surveys from "./pages/Surveys";
 import Upload from "./pages/Upload";
@@ -140,6 +142,13 @@ function Sidebar() {
 }
 
 function Topbar() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try { await signOut(); } finally { navigate("/login", { replace: true }); }
+  };
+
   return (
     <header className="topbar">
       <div className="top-search">
@@ -158,15 +167,22 @@ function Topbar() {
           <div className="avatar">SD</div>
 
           <div className="profile-info">
-            <strong>Siddhika</strong>
-            <span>Researcher</span>
+            <strong>{user?.full_name ?? "User"}</strong>
+            <span>{user?.email ?? "Signed in"}</span>
           </div>
-
-          <ChevronDown size={16} />
         </div>
+        <button type="button" className="auth-signout-button" onClick={() => void handleSignOut()} aria-label="Sign out" title="Sign out">Sign out</button>
       </div>
     </header>
   );
+}
+
+function RequireAuth() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <div className="auth-page"><div className="auth-card" role="status">Checking your secure session…</div></div>;
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+  return <Outlet />;
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -188,7 +204,10 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
+      <Route element={<RequireAuth />}>
       <Route
         path="/dashboard"
         element={
@@ -269,6 +288,7 @@ export default function App() {
         </AppLayout>
       }
     />
+      </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

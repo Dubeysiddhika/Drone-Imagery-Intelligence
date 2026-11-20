@@ -38,6 +38,7 @@ _SUPPORTED_IMAGE_FORMATS = {
     ".jpg": "JPEG",
     ".jpeg": "JPEG",
     ".png": "PNG",
+    ".bmp": "BMP",
     ".tif": "TIFF",
     ".tiff": "TIFF",
 }
@@ -131,7 +132,7 @@ def detect_objects(
     model, metadata = get_model(model_version=model_version)
 
     try:
-        results = model.predict(source=str(image), verbose=False)
+        results = model.predict(source=str(image), device="cpu", verbose=False)
     except Exception as error:
         logger.exception("YOLO inference failed for model %s", metadata["model_version"])
         raise InferenceError("YOLO inference failed.") from error

@@ -1,0 +1,2 @@
+query_image,satellite_tile,tentative_matches,ransac_inliers,inlier_ratio,homography_estimated,pair_seconds,status,flight_number,retrieval_rank,retrieval_cosine_similarity,expected_parent_map,retrieved_parent_map
+01_0001.JPG,09_satellite09_01-01_r009430_c018450,13,4,0.30769,True,11.1322,completed,01,1,0.8076843619346619,satellite01,satellite09

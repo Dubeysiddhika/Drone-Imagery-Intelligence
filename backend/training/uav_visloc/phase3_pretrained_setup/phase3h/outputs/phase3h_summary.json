@@ -1,0 +1,19 @@
+{
+  "phase": "3H",
+  "status": "completed",
+  "method": "SuperPoint + LightGlue + OpenCV RANSAC",
+  "device": "cpu",
+  "low_memory_mode": true,
+  "max_side_px": 512,
+  "max_keypoints": 256,
+  "requested_pairs": 1,
+  "completed_pairs": 1,
+  "model_load_seconds": 0.29,
+  "mean_tentative_matches": 13.0,
+  "mean_ransac_inliers": 4.0,
+  "mean_inlier_ratio": 0.30769,
+  "peak_process_rss_bytes": 472125440,
+  "ram_available_after_run_gb": 1.396,
+  "results_csv": "E:\\Drone-image-intelligence\\backend\\training\\uav_visloc\\phase3_pretrained_setup\\phase3h\\outputs\\phase3h_matching_results.csv",
+  "interpretation": "This is a bounded local-feature smoke test, not a full accuracy evaluation. RANSAC inliers do not establish geographic localization."
+}
