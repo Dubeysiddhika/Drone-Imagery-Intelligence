@@ -86,7 +86,7 @@ describe("authentication pages", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect((password as HTMLInputElement).type).toBe("text");
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByText("Invalid email or password.")).toBeTruthy();
+    expect(await screen.findByText("Unable to sign in. Please check your details and try again.")).toBeTruthy();
     expect(screen.queryByText("private internal details")).toBeNull();
   });
 
