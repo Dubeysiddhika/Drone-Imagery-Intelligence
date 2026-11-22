@@ -11,7 +11,8 @@ import ResetPassword from "../src/pages/ResetPassword";
 import { confirmPasswordReset, getCurrentUser, registerAccount, requestPasswordReset, signIn } from "../src/services/api";
 
 vi.mock("../src/services/api", () => ({
-  API_BASE_URL: "http://127.0.0.1:8000",
+  API_BASE_URL: "",
+  getAuthErrorMessage: vi.fn(() => "Unable to sign in. Please check your details and try again."),
   getCurrentUser: vi.fn(),
   registerAccount: vi.fn(),
   signIn: vi.fn(),
