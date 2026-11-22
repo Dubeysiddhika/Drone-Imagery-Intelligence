@@ -1,18 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get, post } = vi.hoisted(() => ({
+const { get, post, responseUse } = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
+  responseUse: vi.fn(),
 }));
 
 vi.mock("axios", () => ({
   default: {
-    create: () => ({ get, post }),
+    create: () => ({
+      get,
+      post,
+      interceptors: { response: { use: responseUse } },
+    }),
     isAxiosError: () => false,
   },
 }));
 
-import { getStoredDetections, listImages, runDetection } from "../src/services/api";
+import { getStoredDetections, listImages, resolveApiBaseUrl, runDetection } from "../src/services/api";
 
 describe("runDetection", () => {
   beforeEach(() => {
@@ -59,5 +64,22 @@ describe("runDetection", () => {
 
     expect(get).toHaveBeenCalledTimes(1);
     await expect(Promise.all([first, second])).resolves.toEqual([[], []]);
+  });
+});
+
+
+describe("authentication API URL configuration", () => {
+  it("uses the Vite same-origin proxy when no API origin is configured", () => {
+    expect(resolveApiBaseUrl(undefined, "localhost")).toBe("");
+    expect(resolveApiBaseUrl("", "127.0.0.1")).toBe("");
+  });
+
+  it("aligns local API host with the browser host for session cookies", () => {
+    expect(resolveApiBaseUrl("http://127.0.0.1:8000", "localhost")).toBe("http://localhost:8000");
+    expect(resolveApiBaseUrl("http://localhost:8000", "127.0.0.1")).toBe("http://127.0.0.1:8000");
+  });
+
+  it("does not rewrite a non-local API hostname", () => {
+    expect(resolveApiBaseUrl("https://api.example.com", "localhost")).toBe("https://api.example.com");
   });
 });
