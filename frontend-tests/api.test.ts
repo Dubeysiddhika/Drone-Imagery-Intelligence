@@ -1,23 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get, post, responseUse } = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
-  responseUse: vi.fn(),
+  responseErrorHandler: null as null | ((error: unknown) => Promise<never>),
 }));
 
 vi.mock("axios", () => ({
   default: {
     create: () => ({
-      get,
-      post,
-      interceptors: { response: { use: responseUse } },
+      get: mocks.get,
+      post: mocks.post,
+      interceptors: {
+        response: {
+          use: (_fulfilled: unknown, rejected: (error: unknown) => Promise<never>) => {
+            mocks.responseErrorHandler = rejected;
+          },
+        },
+      },
     }),
-    isAxiosError: () => false,
+    isAxiosError: (error: unknown) =>
+      Boolean(error && typeof error === "object" && "isAxiosError" in error && (error as { isAxiosError?: boolean }).isAxiosError),
   },
 }));
 
-import { getStoredDetections, listImages, resolveApiBaseUrl, runDetection } from "../src/services/api";
+import { getAuthErrorMessage, getStoredDetections, listImages, resolveApiBaseUrl, runDetection } from "../src/services/api";
+
+const { get, post } = mocks;
 
 describe("runDetection", () => {
   beforeEach(() => {
@@ -81,5 +90,52 @@ describe("authentication API URL configuration", () => {
 
   it("does not rewrite a non-local API hostname", () => {
     expect(resolveApiBaseUrl("https://api.example.com", "localhost")).toBe("https://api.example.com");
+  });
+});
+
+
+describe("authentication response handling", () => {
+  it("does not treat invalid login credentials as an expired session", async () => {
+    const handler = mocks.responseErrorHandler;
+    if (!handler) throw new Error("Axios response interceptor was not registered");
+    const error = {
+      isAxiosError: true,
+      response: { status: 401 },
+      config: { url: "/api/auth/login" },
+    };
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    await expect(handler(error)).rejects.toBe(error);
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "aerovision:unauthorized" }),
+    );
+    dispatch.mockRestore();
+  });
+
+  it("clears the session after a 401 from a protected endpoint", async () => {
+    const handler = mocks.responseErrorHandler;
+    if (!handler) throw new Error("Axios response interceptor was not registered");
+    const error = {
+      isAxiosError: true,
+      response: { status: 401 },
+      config: { url: "/api/images/" },
+    };
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    await expect(handler(error)).rejects.toBe(error);
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "aerovision:unauthorized" }),
+    );
+    dispatch.mockRestore();
+  });
+
+  it("returns a useful message when the backend cannot be reached", () => {
+    expect(getAuthErrorMessage({ isAxiosError: true, response: undefined }))
+      .toContain("Cannot reach the backend");
+  });
+
+  it("keeps invalid-credential feedback generic", () => {
+    expect(getAuthErrorMessage({
+      isAxiosError: true,
+      response: { status: 401 },
+    })).toBe("Invalid email or password.");
   });
 });
