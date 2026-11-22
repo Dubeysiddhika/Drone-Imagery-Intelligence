@@ -214,6 +214,8 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         _record_failed_login(client_ip)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     _clear_login_failures(client_ip)
+    # Upgrade legacy Argon2 settings only after a successful verification.
+    # Avoid check_needs_rehash on an unrecognized/legacy hash format.
     if password_hasher.check_needs_rehash(user.password_hash):
         user.password_hash = hash_password(payload.password)
         db.commit()
