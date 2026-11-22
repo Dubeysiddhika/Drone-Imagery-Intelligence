@@ -2,6 +2,7 @@ import { FormEvent, useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, Plane } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
+import { getAuthErrorMessage } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 function validEmail(value: string): boolean {
   return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(value.trim());
@@ -41,8 +42,8 @@ export default function Login() {
     try {
       await signIn(email.trim().toLowerCase(), password);
       navigate(destination, { replace: true });
-    } catch {
-      setFormError("Invalid email or password.");
+    } catch (error) {
+      setFormError(getAuthErrorMessage(error));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
