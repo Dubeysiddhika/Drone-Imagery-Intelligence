@@ -1,8 +1,34 @@
 import axios, { type AxiosProgressEvent } from "axios";
 
-export const API_BASE_URL = (
-	import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+/**
+ * Keep local frontend/API hosts aligned. Browsers treat localhost and
+ * 127.0.0.1 as different sites, which can prevent SameSite=Lax session
+ * cookies from being sent on credentialed API requests.
+ *
+ * When no API origin is configured, requests use the Vite /api proxy.
+ */
+export function resolveApiBaseUrl(configuredBaseUrl?: string, browserHostname?: string): string {
+	const candidate = configuredBaseUrl?.trim();
+	if (!candidate) return "";
+
+	try {
+		const apiUrl = new URL(candidate);
+		const currentHostname = browserHostname ??
+			(typeof window !== "undefined" ? window.location.hostname : "");
+		const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+		if (
+			loopbackHosts.has(apiUrl.hostname.toLowerCase()) &&
+			loopbackHosts.has(currentHostname.toLowerCase())
+		) {
+			apiUrl.hostname = currentHostname;
+		}
+		return apiUrl.toString().replace(/\/+$/, "");
+	} catch {
+		return candidate.replace(/\/+$/, "");
+	}
+}
+
+export const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
 const api = axios.create({
 	baseURL: API_BASE_URL,
@@ -12,7 +38,13 @@ const api = axios.create({
 
 api.interceptors.response.use((response) => response, (error: unknown) => {
 	if (axios.isAxiosError(error) && error.response?.status === 401 && typeof window !== "undefined") {
-		window.dispatchEvent(new Event("aerovision:unauthorized"));
+		const requestUrl = error.config?.url ?? "";
+		// A wrong password is a normal sign-in validation result, not an
+		// expired authenticated session. Do not clear auth state for this 401.
+		const isLoginRequest = requestUrl.includes("/api/auth/login");
+		if (!isLoginRequest) {
+			window.dispatchEvent(new Event("aerovision:unauthorized"));
+		}
 	}
 	return Promise.reject(error);
 });
@@ -605,6 +637,21 @@ export async function runUAVVisLocLocalization(
 
 export async function getUAVVisLocStatus(): Promise<UAVVisLocStatus> {
 	return getOnce<UAVVisLocStatus>("/api/uav-visloc/localization/status");
+}
+
+export function getAuthErrorMessage(error: unknown): string {
+	if (!axios.isAxiosError<{ detail?: unknown; message?: string }>(error)) {
+		return "Unable to sign in. Please check your details and try again.";
+	}
+	if (!error.response) {
+		return API_BASE_URL
+			? `Cannot reach the backend at ${API_BASE_URL}. Check that FastAPI is running.`
+			: "Cannot reach the backend through the local frontend proxy. Check that FastAPI is running.";
+	}
+	if (error.response.status === 401) return "Invalid email or password.";
+	if (error.response.status === 429) return "Too many sign-in attempts. Please try again later.";
+	if (error.response.status >= 500) return "The authentication service is temporarily unavailable. Please try again.";
+	return getApiErrorMessage(error);
 }
 
 export function getApiErrorMessage(error: unknown): string {
