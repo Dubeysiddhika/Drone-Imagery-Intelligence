@@ -17,5 +17,13 @@ export default defineConfig({
   },
   server: {
     preTransformRequests: false,
+    // Keep local API calls same-origin so the HTTP-only auth cookie works
+    // whether the app is opened on localhost or 127.0.0.1.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
   },
 });

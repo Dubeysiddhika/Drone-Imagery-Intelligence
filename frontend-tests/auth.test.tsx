@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -11,7 +13,8 @@ import ResetPassword from "../src/pages/ResetPassword";
 import { confirmPasswordReset, getCurrentUser, registerAccount, requestPasswordReset, signIn } from "../src/services/api";
 
 vi.mock("../src/services/api", () => ({
-  API_BASE_URL: "http://127.0.0.1:8000",
+  API_BASE_URL: "",
+  getAuthErrorMessage: vi.fn(() => "Unable to sign in. Please check your details and try again."),
   getCurrentUser: vi.fn(),
   registerAccount: vi.fn(),
   signIn: vi.fn(),
@@ -86,7 +89,7 @@ describe("authentication pages", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect((password as HTMLInputElement).type).toBe("text");
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByText("Invalid email or password.")).toBeTruthy();
+    expect(await screen.findByText("Unable to sign in. Please check your details and try again.")).toBeTruthy();
     expect(screen.queryByText("private internal details")).toBeNull();
   });
 
