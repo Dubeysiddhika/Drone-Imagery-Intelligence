@@ -9,8 +9,6 @@ import {
   Settings,
   Plane,
   Menu,
-  Bell,
-  Search,
   Database,
 } from "lucide-react";
 
@@ -144,34 +142,59 @@ function Sidebar() {
 function Topbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const pageTitles: Record<string, string> = {
+    "/dashboard": "Overview",
+    "/surveys": "Surveys",
+    "/upload": "Upload imagery",
+    "/analysis": "Image analysis",
+    "/map": "GIS map",
+    "/analytics": "Analytics",
+    "/reports": "Reports",
+    "/settings": "Settings",
+    "/uav-visloc": "UAV-VisLoc dataset",
+  };
+  const currentPage = pageTitles[location.pathname] ?? "Workspace";
+  const initials = (user?.full_name ?? "User")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 
   const handleSignOut = async () => {
-    try { await signOut(); } finally { navigate("/login", { replace: true }); }
+    try {
+      await signOut();
+    } finally {
+      navigate("/login", { replace: true });
+    }
   };
 
   return (
     <header className="topbar">
-      <div className="top-search">
-        <Search size={18} />
-        <input placeholder="Search surveys, images, detections..." />
-        <kbd>⌘ K</kbd>
+      <div className="topbar-breadcrumb" aria-label="Current location">
+        <span>AEROVISION</span>
+        <span aria-hidden="true">/</span>
+        <strong>{currentPage}</strong>
       </div>
 
       <div className="top-actions">
-        <button className="icon-button">
-          <Bell size={19} />
-          <span className="notification-dot" />
-        </button>
-
         <div className="profile">
-          <div className="avatar">SD</div>
-
+          <div className="avatar" aria-hidden="true">{initials || "U"}</div>
           <div className="profile-info">
             <strong>{user?.full_name ?? "User"}</strong>
             <span>{user?.email ?? "Signed in"}</span>
           </div>
         </div>
-        <button type="button" className="auth-signout-button" onClick={() => void handleSignOut()} aria-label="Sign out" title="Sign out">Sign out</button>
+        <button
+          type="button"
+          className="auth-signout-button"
+          onClick={() => void handleSignOut()}
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          Sign out
+        </button>
       </div>
     </header>
   );
