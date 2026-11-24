@@ -36,6 +36,13 @@ class DetectorServiceTests(unittest.TestCase):
         Image.new("RGB", (20, 20)).save(self.image_path)
         detector._model_cache.clear()
 
+    def _baseline_metadata_with_test_checkpoint(self):
+        metadata = get_model_metadata("baseline")
+        checkpoint = Path(self.temp_dir.name) / "baseline-test.pt"
+        checkpoint.write_bytes(b"mock checkpoint")
+        metadata["model_path"] = str(checkpoint)
+        return metadata
+
     def tearDown(self):
         detector._model_cache.clear()
         self.temp_dir.cleanup()
@@ -47,7 +54,11 @@ class DetectorServiceTests(unittest.TestCase):
                 SimpleNamespace(boxes=[_Box(1)])
             ],
         )
-        with patch.object(detector, "YOLO", return_value=fake_model) as load_model:
+        metadata = self._baseline_metadata_with_test_checkpoint()
+        with (
+            patch.object(detector, "get_model_metadata", return_value=metadata),
+            patch.object(detector, "YOLO", return_value=fake_model) as load_model,
+        ):
             detections = detector.detect_objects(self.image_path)
             detector.detect_objects(self.image_path, model_version="baseline")
 
@@ -114,10 +125,11 @@ class DetectorServiceTests(unittest.TestCase):
         classes_path = detector.PROJECT_ROOT / "backend" / "app" / "models" / "classes.json"
         weights_path = (
             detector.PROJECT_ROOT
-            / "runs"
-            / "visdrone10_yolo11n"
+            / "backend"
+            / "app"
+            / "models"
             / "weights"
-            / "best.pt"
+            / "visdrone10_yolo11n_best.pt"
         )
 
         self.assertEqual(Path(metadata["model_path"]), weights_path.resolve())
@@ -171,7 +183,11 @@ class DetectorServiceTests(unittest.TestCase):
             names={0: "person", 1: "vehicle"},
             predict=fail_prediction,
         )
-        with patch.object(detector, "YOLO", return_value=fake_model):
+        metadata = self._baseline_metadata_with_test_checkpoint()
+        with (
+            patch.object(detector, "get_model_metadata", return_value=metadata),
+            patch.object(detector, "YOLO", return_value=fake_model),
+        ):
             with self.assertRaisesRegex(detector.InferenceError, "inference failed"):
                 detector.detect_objects(self.image_path)
 

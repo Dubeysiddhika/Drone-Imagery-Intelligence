@@ -17,7 +17,7 @@ from sqlalchemy.pool import StaticPool
 from app.models.database import Base, get_db
 from app.models.models import PasswordResetToken, User
 from app.routes import auth
-from app.services.security import JWT_SECRET_KEY, get_current_user, verify_password
+from app.services.security import JWT_SECRET_KEY, get_current_user, hash_password, verify_password
 
 
 class AuthenticationRouteTests(unittest.TestCase):
@@ -76,7 +76,16 @@ class AuthenticationRouteTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 422, response.text)
 
     def test_legacy_complexity_password_can_sign_in_and_cookie_is_http_only(self):
-        self.assertEqual(self.register(password="Legacy Password").status_code, 201)
+        # Model a pre-existing account created before the current registration
+        # password policy. Login must remain compatible with its existing hash.
+        with self.sessions() as session:
+            session.add(User(
+                full_name="Siddhika Rao",
+                normalized_email="siddhika@gmail.com",
+                password_hash=hash_password("Legacy Password"),
+            ))
+            session.commit()
+
         response = self.client.post("/api/auth/login", json={"email": " SIDDHIKA@GMAIL.COM ", "password": "Legacy Password"})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertNotIn("token", response.json())

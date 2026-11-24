@@ -244,7 +244,7 @@ describe("live data pages", () => {
 
   it("shows database-backed dashboard summaries, processing status, and survey filters", async () => {
     render(<MemoryRouter><Dashboard /></MemoryRouter>);
-    expect(await screen.findByText("Drone Imagery Intelligence")).toBeTruthy();
+    expect(await screen.findByText("Mission intelligence overview")).toBeTruthy();
     expect(screen.getByText("GPS-tagged Images")).toBeTruthy();
     expect(screen.getByText(/1 processed/)).toBeTruthy();
     expect(screen.getByText(/UAV-VISLOC/i)).toBeTruthy();

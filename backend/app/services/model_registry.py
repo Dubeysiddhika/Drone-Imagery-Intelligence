@@ -33,7 +33,7 @@ def _baseline_model_path() -> Path:
 def _visdrone10_model_path() -> Path:
     return resolve_project_path(
         os.environ.get("VISDRONE10_MODEL_PATH"),
-        "runs/visdrone10_yolo11n/weights/best.pt",
+        "backend/app/models/weights/visdrone10_yolo11n_best.pt",
     )
 
 
