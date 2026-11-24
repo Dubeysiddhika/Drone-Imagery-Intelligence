@@ -7,7 +7,7 @@ import {
   BarChart3,
   FileText,
   Settings,
-  Plane,
+  Radar,
   Menu,
   Database,
 } from "lucide-react";
@@ -31,37 +31,37 @@ import SettingsPage from "./pages/Settings";
 import UAVVisLocPage from "./pages/UAVVisLoc";
 const navItems = [
   {
-    name: "Dashboard",
+    name: "Operations Overview",
     path: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    name: "Surveys",
+    name: "Survey Missions",
     path: "/surveys",
     icon: Map,
   },
   {
-    name: "Upload Imagery",
+    name: "Imagery Intake",
     path: "/upload",
     icon: UploadCloud,
   },
   {
-    name: "Image Analysis",
+    name: "Detection Workbench",
     path: "/analysis",
     icon: ScanSearch,
   },
   {
-    name: "GIS Map",
+    name: "Geospatial Map",
     path: "/map",
     icon: Map,
   },
   {
-    name: "Analytics",
+    name: "Intelligence Analytics",
     path: "/analytics",
     icon: BarChart3,
   },
   {
-    name: "Reports",
+    name: "Mission Reports",
     path: "/reports",
     icon: FileText,
   },
@@ -81,7 +81,7 @@ function Sidebar() {
       <div className="sidebar-top">
         <div className="brand">
           <div className="brand-icon">
-            <Plane size={21} />
+            <Radar size={21} />
           </div>
 
           {!collapsed && (
@@ -144,13 +144,13 @@ function Topbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const pageTitles: Record<string, string> = {
-    "/dashboard": "Overview",
-    "/surveys": "Surveys",
-    "/upload": "Upload imagery",
-    "/analysis": "Image analysis",
-    "/map": "GIS map",
-    "/analytics": "Analytics",
-    "/reports": "Reports",
+    "/dashboard": "Operations overview",
+    "/surveys": "Survey missions",
+    "/upload": "Imagery intake",
+    "/analysis": "Detection workbench",
+    "/map": "Geospatial map",
+    "/analytics": "Intelligence analytics",
+    "/reports": "Mission reports",
     "/settings": "Settings",
     "/uav-visloc": "UAV-VisLoc dataset",
   };
