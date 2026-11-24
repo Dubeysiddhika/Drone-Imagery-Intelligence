@@ -4,6 +4,7 @@ import logging
 import shutil
 import uuid
 import math
+import os
 from datetime import date, datetime, time, timedelta
 
 from pathlib import Path
@@ -24,6 +25,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from PIL import Image, UnidentifiedImageError
 
+from ..config import PROJECT_ROOT, resolve_project_path
 from ..models.database import get_db
 from ..models.models import Detection, DroneImage, Survey, UAVVisLocImageMatch
 from ..services.detector import InvalidImageError, validate_image
@@ -120,20 +122,12 @@ def _uploaded_file_path(filepath: str) -> Path:
 # Upload directory
 # --------------------------------------------------
 
-BASE_DIR = (
-    Path(__file__)
-    .resolve()
-    .parents[2]
+BASE_DIR = PROJECT_ROOT
+UPLOAD_DIR = resolve_project_path(
+    os.environ.get("UPLOAD_DIR"),
+    "backend/uploads",
 )
-
-UPLOAD_DIR = (
-    BASE_DIR / "uploads"
-)
-
-UPLOAD_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # --------------------------------------------------

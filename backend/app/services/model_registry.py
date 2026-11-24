@@ -6,7 +6,9 @@ from typing import Any
 
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+from ..config import PROJECT_ROOT, resolve_project_path
+
+
 VISDRONE10_CLASS_NAMES = [
     "pedestrian",
     "people",
@@ -21,24 +23,25 @@ VISDRONE10_CLASS_NAMES = [
 ]
 
 
+def _baseline_model_path() -> Path:
+    return resolve_project_path(
+        os.environ.get("BASELINE_MODEL_PATH"),
+        "runs/drone_person_vehicle/weights/best.pt",
+    )
+
+
 def _visdrone10_model_path() -> Path:
-    configured_path = os.environ.get(
-        "VISDRONE10_MODEL_PATH",
+    return resolve_project_path(
+        os.environ.get("VISDRONE10_MODEL_PATH"),
         "runs/visdrone10_yolo11n/weights/best.pt",
     )
-    path = Path(configured_path).expanduser()
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path
-    return path.resolve()
 
 
 MODEL_CATALOG: dict[str, dict[str, Any]] = {
     "baseline": {
         "model_name": "YOLO11n",
         "model_version": "drone_person_vehicle",
-        "model_path": str(
-            PROJECT_ROOT / "runs" / "drone_person_vehicle" / "weights" / "best.pt"
-        ),
+        "model_path": str(_baseline_model_path()),
         "class_names": ["person", "vehicle"],
         "class_count": 2,
         "framework": "Ultralytics YOLO",
@@ -47,9 +50,7 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
     "drone_person_vehicle": {
         "model_name": "YOLO11n",
         "model_version": "drone_person_vehicle",
-        "model_path": str(
-            PROJECT_ROOT / "runs" / "drone_person_vehicle" / "weights" / "best.pt"
-        ),
+        "model_path": str(_baseline_model_path()),
         "class_names": ["person", "vehicle"],
         "class_count": 2,
         "framework": "Ultralytics YOLO",
@@ -96,6 +97,8 @@ def get_model_metadata(model_version: str | None = None) -> dict[str, Any]:
         metadata = dict(MODEL_CATALOG[version_key])
         if metadata["model_version"] == "visdrone10_yolo11n":
             metadata["model_path"] = str(_visdrone10_model_path())
+        elif metadata["model_version"] == "drone_person_vehicle":
+            metadata["model_path"] = str(_baseline_model_path())
         return metadata
 
     raise ValueError(f"Unsupported model version: {model_version}")
@@ -124,7 +127,7 @@ def get_default_model_version() -> str:
 
 
 def get_default_model_path() -> Path:
-    return Path(MODEL_CATALOG["baseline"]["model_path"])
+    return _baseline_model_path()
 
 
 def get_dataset_class_names() -> list[str]:

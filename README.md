@@ -2,8 +2,15 @@
 
 FastAPI backend for drone image upload, EXIF/GPS metadata extraction, YOLO object detection, SQLAlchemy persistence, and a React/Vite frontend. PostgreSQL with PostGIS is the intended production database. Development and isolated tests can use SQLite.
 
-For verified Windows environment installation, database configuration, model
-checks, application startup, and test commands, see [LOCAL_SETUP.md](LOCAL_SETUP.md).
+For cross-platform setup on Windows, macOS and Linux, environment configuration,
+model/data asset requirements, startup, tests and deployment guidance, see
+[LOCAL_SETUP.md](LOCAL_SETUP.md). Run `python scripts/check_environment.py` after
+installing dependencies to check the local environment and optional research assets.
+
+**Important:** a fresh clone does not contain every local artifact. The two-class
+baseline checkpoint, UAV-VisLoc source dataset, generated satellite index, local
+SQLite database and uploaded images may need to be supplied separately. The setup
+guide identifies which features depend on each asset.
 
 ## Model & Dataset Strategy
 
