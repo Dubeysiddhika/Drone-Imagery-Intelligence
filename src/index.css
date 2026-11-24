@@ -4563,3 +4563,60 @@ input:not([type="checkbox"]):not([type="radio"]), select, textarea {
   .dashboard-filter-bar { grid-template-columns: 1fr; }
   .dashboard-filter-bar label:first-child { grid-column: auto; }
 }
+
+
+/* Prevent metadata values (especially GPS coordinates) from being
+   clipped by the narrow value column or the scroll bar. */
+.metadata-list > div {
+  grid-template-columns: minmax(76px, .62fr) minmax(0, 1.38fr);
+  gap: 8px;
+}
+.metadata-list dt,
+.metadata-list dd {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.metadata-list dd {
+  padding-right: 7px;
+  line-height: 1.5;
+}
+.dataset-source-fields {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 12px;
+  scrollbar-gutter: stable;
+}
+.dataset-source-fields > div {
+  grid-template-columns: minmax(72px, .58fr) minmax(0, 1.42fr);
+}
+.dataset-source-fields dd {
+  overflow: visible;
+  text-overflow: clip;
+}
+.gps-coordinate-block {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.gps-coordinate-block strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding-right: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.55;
+}
+.intelligence-coordinate-sources p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.intelligence-coordinate-sources p strong {
+  white-space: normal;
+}
