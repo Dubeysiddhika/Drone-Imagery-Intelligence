@@ -12,6 +12,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ from app.models.database import SessionLocal, engine  # noqa: E402
 from app.models.models import UAVVisLocRecord  # noqa: E402
 
 CONSOLIDATED_CSV = resolve_project_path(
-    None,
+    os.environ.get("UAV_VISLOC_CONSOLIDATED_CSV"),
     "backend/training/uav_visloc/phase1_validation/outputs/consolidated_drone_metadata.csv",
 )
 DEFAULT_JSON_EXPORT = (
