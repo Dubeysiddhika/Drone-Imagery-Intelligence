@@ -48,10 +48,22 @@ def _infer_dataset_root_from_consolidated_csv() -> Path | None:
 
 
 _inferred_dataset_root = _infer_dataset_root_from_consolidated_csv()
-DEFAULT_DATASET_ROOT = resolve_project_path(
-    os.environ.get("UAV_VISLOC_DATASET_DIR"),
-    _inferred_dataset_root or "UAV_VisLoc_dataset",
+_configured_dataset_root = os.environ.get("UAV_VISLOC_DATASET_DIR")
+_configured_dataset_path = (
+    resolve_project_path(_configured_dataset_root, "UAV_VisLoc_dataset")
+    if _configured_dataset_root
+    else None
 )
+if _configured_dataset_path is not None and _configured_dataset_path.is_dir():
+    DEFAULT_DATASET_ROOT = _configured_dataset_path
+elif _inferred_dataset_root is not None and _inferred_dataset_root.is_dir():
+    # Ignore a stale example .env path when the consolidated CSV points to
+    # the actual external dataset location.
+    DEFAULT_DATASET_ROOT = _inferred_dataset_root
+elif _configured_dataset_path is not None:
+    DEFAULT_DATASET_ROOT = _configured_dataset_path
+else:
+    DEFAULT_DATASET_ROOT = resolve_project_path(None, "UAV_VisLoc_dataset")
 _registry_lock = threading.Lock()
 _registry: "DatasetRegistry | None" = None
 
