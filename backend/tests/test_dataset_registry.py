@@ -116,8 +116,8 @@ class DatasetRegistryTests(unittest.TestCase):
         with patch.object(dataset_registry, "CONSOLIDATED_CSV", self.consolidated):
             registry = DatasetRegistry(missing_root)
             self.assertEqual(len(registry.records), 2)
-            self.assertIn("01_0065.JPG", registry.by_filename)
-            self.assertIn("01_0066.JPG", registry.by_filename)
+            self.assertIn("01_0065.jpg", registry.by_filename)
+            self.assertIn("01_0066.jpg", registry.by_filename)
             record = registry.by_filename["01_0065.jpg"][0]
             self.assertEqual(record["ground_truth"]["latitude"], 29.71534712)
             self.assertEqual(record["ground_truth"]["longitude"], 115.9747744)
