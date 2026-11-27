@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import inspect
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = PROJECT_ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
@@ -204,6 +206,10 @@ def rematch_existing_uploads() -> tuple[int, int]:
     SHA-256 or the registry's visual verification; a filename alone never
     assigns coordinates.
     """
+    required_tables = {DroneImage.__tablename__, UAVVisLocImageMatch.__tablename__}
+    if not required_tables.issubset(set(inspect(engine).get_table_names())):
+        return 0, 0
+
     scanned = 0
     matched = 0
     with SessionLocal() as session:
