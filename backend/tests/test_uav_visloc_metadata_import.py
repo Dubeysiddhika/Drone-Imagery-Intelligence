@@ -133,6 +133,7 @@ class UAVVisLocMetadataImportTests(unittest.TestCase):
         }
         with (
             patch.object(importer, "SessionLocal", sessions),
+            patch.object(importer, "engine", engine),
             patch.object(importer, "identify_dataset_image", return_value={
                 "status": "matched",
                 "method": "exact_filename_and_sha256",
