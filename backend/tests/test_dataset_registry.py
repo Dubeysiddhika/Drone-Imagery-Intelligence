@@ -69,6 +69,65 @@ class DatasetRegistryTests(unittest.TestCase):
             self.assertEqual(rejected["status"], "not_matched")
             self.assertIsNone(rejected["record"])
 
+    def test_consolidated_csv_loads_all_metadata_when_external_dataset_root_is_missing(self):
+        missing_root = Path(self.temporary.name) / "dataset-on-another-drive"
+        second_image_name = "01_0066.JPG"
+        with (self.consolidated).open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=[
+                    "flight_number", "image_filename", "image_path", "source_csv",
+                    "capture_time_raw", "latitude", "longitude", "height",
+                    "omega", "kappa", "phi1", "phi2", "satellite_map",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow({
+                "flight_number": "01",
+                "image_filename": self.image_path.name,
+                "image_path": str(self.image_path),
+                "source_csv": "01/01.csv",
+                "capture_time_raw": "2018-09-17T12:47:57",
+                "latitude": "29.71534712",
+                "longitude": "115.9747744",
+                "height": "406.37",
+                "omega": "-0.1",
+                "kappa": "-0.2",
+                "phi1": "168.88504",
+                "phi2": "178.5",
+                "satellite_map": "satellite01.tif",
+            })
+            writer.writerow({
+                "flight_number": "01",
+                "image_filename": second_image_name,
+                "image_path": str(missing_root / "01" / "drone" / second_image_name),
+                "source_csv": "01/01.csv",
+                "capture_time_raw": "2018-09-17T12:48:01",
+                "latitude": "29.71540000",
+                "longitude": "115.97480000",
+                "height": "405.0",
+                "omega": "",
+                "kappa": "",
+                "phi1": "",
+                "phi2": "",
+                "satellite_map": "satellite01.tif",
+            })
+
+        with patch.object(dataset_registry, "CONSOLIDATED_CSV", self.consolidated):
+            registry = DatasetRegistry(missing_root)
+            self.assertEqual(len(registry.records), 2)
+            self.assertIn("01_0065.jpg", registry.by_filename)
+            self.assertIn("01_0066.jpg", registry.by_filename)
+            record = registry.by_filename["01_0065.jpg"][0]
+            self.assertEqual(record["ground_truth"]["latitude"], 29.71534712)
+            self.assertEqual(record["ground_truth"]["longitude"], 115.9747744)
+            self.assertEqual(record["consolidated_fields"]["omega"], "-0.1")
+            self.assertEqual(record["dataset_image_exists"], True)
+            matched = registry.identify(self.image_path, "01_0065.JPG")
+            self.assertEqual(matched["status"], "matched")
+            self.assertEqual(matched["method"], "exact_filename_and_sha256")
+            self.assertEqual(matched["record"]["ground_truth"]["available"], True)
+
     def test_dataset_identity_for_a_bounded_sample_from_all_eleven_flights(self):
         if not DEFAULT_DATASET_ROOT.is_dir():
             self.skipTest("Local UAV-VisLoc dataset is not present")

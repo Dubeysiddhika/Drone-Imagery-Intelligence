@@ -17,14 +17,53 @@ import numpy as np
 from ..config import PROJECT_ROOT, resolve_project_path
 
 logger = logging.getLogger(__name__)
-DEFAULT_DATASET_ROOT = resolve_project_path(
-    os.environ.get("UAV_VISLOC_DATASET_DIR"),
-    "UAV_VisLoc_dataset",
-)
+
 CONSOLIDATED_CSV = resolve_project_path(
     os.environ.get("UAV_VISLOC_CONSOLIDATED_CSV"),
     "backend/training/uav_visloc/phase1_validation/outputs/consolidated_drone_metadata.csv",
 )
+
+
+def _infer_dataset_root_from_consolidated_csv() -> Path | None:
+    """Infer the source dataset root from a real image_path in the metadata CSV.
+
+    The CSV can live inside the repository while the large image dataset lives
+    elsewhere on the developer's machine. Inferring the root avoids requiring
+    the same absolute path on every computer.
+    """
+    if not CONSOLIDATED_CSV.is_file():
+        return None
+    try:
+        with CONSOLIDATED_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                raw_path = (row.get("image_path") or "").strip()
+                if not raw_path:
+                    continue
+                candidate = Path(raw_path).expanduser()
+                if candidate.is_file() and len(candidate.parents) >= 3:
+                    return candidate.parents[2]
+    except (OSError, csv.Error):
+        logger.exception("Could not infer UAV-VisLoc dataset root from consolidated metadata")
+    return None
+
+
+_inferred_dataset_root = _infer_dataset_root_from_consolidated_csv()
+_configured_dataset_root = os.environ.get("UAV_VISLOC_DATASET_DIR")
+_configured_dataset_path = (
+    resolve_project_path(_configured_dataset_root, "UAV_VisLoc_dataset")
+    if _configured_dataset_root
+    else None
+)
+if _configured_dataset_path is not None and _configured_dataset_path.is_dir():
+    DEFAULT_DATASET_ROOT = _configured_dataset_path
+elif _inferred_dataset_root is not None and _inferred_dataset_root.is_dir():
+    # Ignore a stale example .env path when the consolidated CSV points to
+    # the actual external dataset location.
+    DEFAULT_DATASET_ROOT = _inferred_dataset_root
+elif _configured_dataset_path is not None:
+    DEFAULT_DATASET_ROOT = _configured_dataset_path
+else:
+    DEFAULT_DATASET_ROOT = resolve_project_path(None, "UAV_VisLoc_dataset")
 _registry_lock = threading.Lock()
 _registry: "DatasetRegistry | None" = None
 
@@ -90,18 +129,23 @@ def _verify_visual_match(query_path: Path, candidate_path: Path) -> tuple[int, f
 
 
 class DatasetRegistry:
-    """Read CSVs once and cache content fingerprints for conservative fallback matching."""
+    """Read UAV-VisLoc metadata and cache fingerprints for conservative matching.
+
+    When the original flight folders are available, source CSV files remain the
+    primary source so their complete columns are preserved. If those folders
+    are outside the checkout or unavailable, the consolidated metadata CSV is
+    still loaded for the dataset table and for matching against its image_path
+    entries when those source files are accessible.
+    """
 
     def __init__(self, root: Path = DEFAULT_DATASET_ROOT):
-        self.root = root.resolve()
+        self.root = Path(root).expanduser().resolve()
         self.records: list[dict[str, Any]] = []
         self.by_filename: dict[str, list[dict[str, Any]]] = {}
         self._fingerprints: dict[str, tuple[int, int, int]] | None = None
         self._load_csv_registry()
 
     def _load_csv_registry(self) -> None:
-        if not self.root.is_dir():
-            return
         consolidated: dict[str, dict[str, str]] = {}
         if CONSOLIDATED_CSV.is_file():
             try:
@@ -113,52 +157,113 @@ class DatasetRegistry:
             except (OSError, csv.Error):
                 logger.exception("Could not read the derived UAV-VisLoc metadata index")
 
-        for csv_path in sorted(self.root.glob("*/[0-9]*.csv")):
-            flight = csv_path.parent.name
-            try:
-                with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
-                    rows = csv.DictReader(handle)
-                    for raw in rows:
-                        filename = Path(raw.get("filename", "")).name
-                        if not filename:
-                            continue
-                        key = filename.casefold()
-                        relative = Path(flight) / "drone" / filename
-                        source_image = (self.root / relative).resolve()
-                        try:
-                            source_image.relative_to(self.root)
-                        except ValueError:
-                            continue
-                        extras = consolidated.get(key, {})
-                        latitude = _number(raw.get("lat", extras.get("latitude")))
-                        longitude = _number(raw.get("lon", extras.get("longitude")))
-                        gps_valid = (
-                            latitude is not None and longitude is not None
-                            and -90 <= latitude <= 90 and -180 <= longitude <= 180
-                        )
-                        map_name = extras.get("satellite_map") or None
-                        record = {
-                            "filename": filename,
-                            "flight_sequence": flight,
-                            "dataset_image_path": relative.as_posix(),
-                            "dataset_image_exists": source_image.is_file(),
-                            "metadata_csv": csv_path.relative_to(self.root).as_posix(),
-                            "satellite_map": map_name,
-                            "ground_truth": {
-                                "latitude": latitude if gps_valid else None,
-                                "longitude": longitude if gps_valid else None,
-                                "coordinate_reference_system": "EPSG:4326" if gps_valid else None,
-                                "coordinate_source": "uav_visloc_dataset_ground_truth" if gps_valid else None,
-                                "available": gps_valid,
-                            },
-                            "source_fields": dict(raw),
-                            "consolidated_fields": dict(extras),
-                            "_absolute_path": str(source_image),
-                        }
-                        self.records.append(record)
-                        self.by_filename.setdefault(key, []).append(record)
-            except (OSError, csv.Error):
-                logger.exception("Could not read UAV-VisLoc metadata CSV %s", csv_path)
+        if self.root.is_dir():
+            for csv_path in sorted(self.root.glob("*/[0-9]*.csv")):
+                flight = csv_path.parent.name
+                try:
+                    with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+                        rows = csv.DictReader(handle)
+                        for raw in rows:
+                            filename = Path(raw.get("filename", "")).name
+                            if not filename:
+                                continue
+                            key = filename.casefold()
+                            relative = Path(flight) / "drone" / filename
+                            source_image = (self.root / relative).resolve()
+                            try:
+                                source_image.relative_to(self.root)
+                            except ValueError:
+                                continue
+                            extras = consolidated.get(key, {})
+                            latitude = _number(raw.get("lat", extras.get("latitude")))
+                            longitude = _number(raw.get("lon", extras.get("longitude")))
+                            gps_valid = (
+                                latitude is not None and longitude is not None
+                                and -90 <= latitude <= 90 and -180 <= longitude <= 180
+                            )
+                            map_name = extras.get("satellite_map") or None
+                            record = {
+                                "filename": filename,
+                                "flight_sequence": flight,
+                                "dataset_image_path": relative.as_posix(),
+                                "dataset_image_exists": source_image.is_file(),
+                                "metadata_csv": csv_path.relative_to(self.root).as_posix(),
+                                "satellite_map": map_name,
+                                "ground_truth": {
+                                    "latitude": latitude if gps_valid else None,
+                                    "longitude": longitude if gps_valid else None,
+                                    "coordinate_reference_system": "EPSG:4326" if gps_valid else None,
+                                    "coordinate_source": "uav_visloc_dataset_ground_truth" if gps_valid else None,
+                                    "available": gps_valid,
+                                },
+                                "source_fields": dict(raw),
+                                "consolidated_fields": dict(extras),
+                                "_absolute_path": str(source_image),
+                            }
+                            self.records.append(record)
+                            self.by_filename.setdefault(key, []).append(record)
+                except (OSError, csv.Error):
+                    logger.exception("Could not read UAV-VisLoc metadata CSV %s", csv_path)
+
+        # A missing external dataset directory must not hide metadata that is
+        # already present in the consolidated CSV inside the repository.
+        if not self.records and CONSOLIDATED_CSV.is_file():
+            self._load_consolidated_records()
+
+    def _load_consolidated_records(self) -> None:
+        try:
+            with CONSOLIDATED_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+                for row in csv.DictReader(handle):
+                    filename = Path((row.get("image_filename") or "").strip()).name
+                    if not filename:
+                        continue
+                    flight = (row.get("flight_number") or row.get("flight_sequence") or "").strip()
+                    if not flight:
+                        source_csv = (row.get("source_csv") or "").replace("\\", "/")
+                        flight = source_csv.split("/", 1)[0] if source_csv else ""
+                    if not flight or flight in {".", ".."} or "/" in flight or "\\" in flight:
+                        logger.warning("Skipping UAV-VisLoc row with invalid flight number: %r", flight)
+                        continue
+
+                    relative = Path(flight) / "drone" / filename
+                    raw_path = (row.get("image_path") or "").strip()
+                    candidate_path = Path(raw_path).expanduser() if raw_path else self.root / relative
+                    if not candidate_path.is_absolute():
+                        candidate_path = self.root / candidate_path
+                    source_image = candidate_path.resolve()
+                    latitude = _number(row.get("latitude", row.get("lat")))
+                    longitude = _number(row.get("longitude", row.get("lon")))
+                    gps_valid = (
+                        latitude is not None and longitude is not None
+                        and -90 <= latitude <= 90 and -180 <= longitude <= 180
+                    )
+                    relative_csv = (row.get("source_csv") or f"{flight}/{flight}.csv").replace("\\", "/")
+                    record = {
+                        "filename": filename,
+                        "flight_sequence": flight,
+                        "dataset_image_path": relative.as_posix(),
+                        "dataset_image_exists": source_image.is_file(),
+                        "metadata_csv": relative_csv,
+                        "satellite_map": row.get("satellite_map") or None,
+                        "ground_truth": {
+                            "latitude": latitude if gps_valid else None,
+                            "longitude": longitude if gps_valid else None,
+                            "coordinate_reference_system": "EPSG:4326" if gps_valid else None,
+                            "coordinate_source": "uav_visloc_dataset_ground_truth" if gps_valid else None,
+                            "available": gps_valid,
+                        },
+                        "source_fields": {
+                            key.removeprefix("source_"): value
+                            for key, value in row.items()
+                            if key.startswith("source_")
+                        },
+                        "consolidated_fields": dict(row),
+                        "_absolute_path": str(source_image),
+                    }
+                    self.records.append(record)
+                    self.by_filename.setdefault(filename.casefold(), []).append(record)
+        except (OSError, csv.Error):
+            logger.exception("Could not load UAV-VisLoc consolidated metadata CSV %s", CONSOLIDATED_CSV)
 
     @staticmethod
     def _public(record: dict[str, Any] | None) -> dict[str, Any] | None:
