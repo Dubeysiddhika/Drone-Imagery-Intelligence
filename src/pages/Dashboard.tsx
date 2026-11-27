@@ -11,7 +11,7 @@ import {
   listSurveys, type DashboardSummary, type SurveyRecord,
 } from "../services/api";
 
-const colors = ["#16847c", "#e68543", "#8b5cf6", "#3b82f6", "#eab308", "#ef4444", "#06b6d4", "#ec4899"];
+const colors = ["#78884a", "#b08c4f", "#5f8375", "#718a9b", "#9b9868", "#b16f58", "#577b63", "#8e8269"];
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -71,9 +71,9 @@ export default function Dashboard() {
     <div className="intelligence-dashboard">
       <header className="dashboard-heading">
         <div>
-          <p className="dashboard-eyebrow">AERIAL IMAGERY / LIVE WORKSPACE</p>
-          <h1>Drone Imagery Intelligence</h1>
-          <p>Survey, image, detection and localization statistics from stored platform records.</p>
+          <p className="dashboard-eyebrow">FIELD OPERATIONS / AERIAL INTELLIGENCE</p>
+          <h1>Mission intelligence overview</h1>
+          <p>A consolidated view of survey activity, image processing, object detection and geospatial localization.</p>
         </div>
         <div className={`backend-indicator backend-${backendStatus}`} role="status">
           <span className="backend-indicator-dot" />
@@ -122,7 +122,7 @@ export default function Dashboard() {
 
       <section className="dashboard-chart-grid" aria-label="Detection analytics">
         <article className="workbench-panel dashboard-chart-card">
-          <div className="dashboard-section-heading"><div><p className="panel-kicker">OBJECT CLASS DISTRIBUTION</p><h2>Detections by class</h2></div></div>
+          <div className="dashboard-section-heading"><div><p className="panel-kicker">DETECTION INTELLIGENCE</p><h2>Detections by class</h2></div></div>
           {summaryLoading ? <p className="dashboard-empty-note">Loading class statistics…</p> : summary?.class_counts.length ? (
             <div className="dashboard-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={summary.class_counts} margin={{ top: 8, right: 8, bottom: 30, left: 0 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="class_name" angle={-25} textAnchor="end" interval={0} tick={{ fontSize: 10 }} /><YAxis allowDecimals={false} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="count" name="Stored detections" radius={[5, 5, 0, 0]}>{summary.class_counts.map((entry, index) => <Cell key={entry.class_name} fill={colors[index % colors.length]} />)}</Bar></BarChart></ResponsiveContainer></div>
           ) : <p className="dashboard-empty-note">No stored detections for these filters.</p>}
@@ -130,13 +130,13 @@ export default function Dashboard() {
         <article className="workbench-panel dashboard-chart-card">
           <div className="dashboard-section-heading"><div><p className="panel-kicker">MODEL CONFIDENCE</p><h2>Confidence distribution</h2></div></div>
           {summaryLoading ? <p className="dashboard-empty-note">Loading confidence statistics…</p> : summary && summary.total_detections ? (
-            <div className="dashboard-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={summary.confidence_distribution}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="range" tick={{ fontSize: 10 }} /><YAxis allowDecimals={false} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="count" name="Detections" fill="#3b82f6" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></div>
+            <div className="dashboard-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={summary.confidence_distribution}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="range" tick={{ fontSize: 10 }} /><YAxis allowDecimals={false} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="count" name="Detections" fill="#78884a" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></div>
           ) : <p className="dashboard-empty-note">No confidence values are stored for these filters.</p>}
         </article>
       </section>
 
       <article className="workbench-panel dashboard-survey-panel">
-        <div className="dashboard-section-heading"><div><p className="panel-kicker">MISSION BREAKDOWN</p><h2>Survey-wise analytics</h2></div></div>
+        <div className="dashboard-section-heading"><div><p className="panel-kicker">SURVEY SITUATION REPORT</p><h2>Survey-wise analytics</h2></div></div>
         {summaryLoading ? <p className="dashboard-empty-note">Loading survey statistics…</p> : summary?.survey_statistics.length ? (
           <div className="dashboard-survey-table"><div className="dashboard-survey-row dashboard-survey-header"><span>Survey</span><span>Images</span><span>Detections</span><span>GPS-tagged</span></div>{summary.survey_statistics.map((survey) => <div className="dashboard-survey-row" key={survey.survey_id}><span>{survey.survey_name}</span><span>{survey.image_count}</span><span>{survey.detection_count}</span><span>{survey.gps_image_count}</span></div>)}</div>
         ) : <p className="dashboard-empty-note">No survey-linked images match the current filters.</p>}
@@ -144,11 +144,11 @@ export default function Dashboard() {
 
       <section className="dashboard-live-grid" aria-label="Recent workspace activity">
         <article className="workbench-panel dashboard-recent-panel">
-          <div className="dashboard-section-heading"><div><p className="panel-kicker">LATEST INGESTION</p><h2>Recent images</h2></div><Link to="/upload" className="dashboard-text-link">Upload imagery</Link></div>
+          <div className="dashboard-section-heading"><div><p className="panel-kicker">RECENT IMAGE INTAKE</p><h2>Recent images</h2></div><Link to="/upload" className="dashboard-text-link">Upload imagery</Link></div>
           {summary?.recent_images.length ? <div className="recent-image-grid">{summary.recent_images.slice(0, 4).map((image) => <Link className="recent-image-card" key={image.image_id} to={`/analysis?image_id=${image.image_id}`}><img src={getImagePreviewUrl(image.image_id)} alt="" loading="lazy" /><span>{image.filename}</span><small>{image.detection_count ?? 0} stored detections · {image.gps_available ? "GPS available" : "No GPS"}</small></Link>)}</div> : <p className="dashboard-empty-note">{summaryLoading ? "Loading recent images…" : "No uploaded images match these filters."}</p>}
         </article>
         <article className="workbench-panel dashboard-recent-panel">
-          <div className="dashboard-section-heading"><div><p className="panel-kicker">PROCESSING HISTORY</p><h2>Recent activity</h2></div><Link to="/analytics" className="dashboard-text-link">Detection analytics</Link></div>
+          <div className="dashboard-section-heading"><div><p className="panel-kicker">RECENT OPERATIONS</p><h2>Recent activity</h2></div><Link to="/analytics" className="dashboard-text-link">Detection analytics</Link></div>
           {summary?.recent_processing_activity.length ? <ul className="recent-activity-list">{summary.recent_processing_activity.slice(0, 8).map((run) => <li key={run.id}><Link to={`/analysis?image_id=${run.image_id}`}><span><strong>{run.pipeline === "localization" ? "UAV-VisLoc" : "YOLO detection"}</strong>{run.mode ? ` · ${run.mode.replaceAll("_", " ")}` : ""} · {run.filename}</span><small>{run.status}{run.processing_seconds != null ? ` · ${run.processing_seconds.toFixed(2)} s` : ""}{run.result_count != null ? ` · ${run.result_count} results` : ""}{run.error_message ? ` · ${run.error_message}` : ""}</small></Link></li>)}</ul> : <p className="dashboard-empty-note">{summaryLoading ? "Loading processing activity…" : "No processing runs are stored for these filters."}</p>}
         </article>
       </section>
