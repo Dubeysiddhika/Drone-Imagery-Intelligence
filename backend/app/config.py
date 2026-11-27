@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Mapping
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
@@ -8,6 +9,18 @@ from sqlalchemy.engine import make_url
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
+
+
+def resolve_project_path(
+    configured_path: str | Path | None,
+    default_path: str | Path,
+) -> Path:
+    """Resolve configured paths consistently from the repository root."""
+    raw_path = configured_path if configured_path not in (None, "") else default_path
+    path = Path(raw_path).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path.resolve()
 
 
 def get_database_url(environment: Mapping[str, str] | None = None) -> str:
@@ -36,6 +49,32 @@ def get_database_url(environment: Mapping[str, str] | None = None) -> str:
         )
 
     return f"sqlite:///{(PROJECT_ROOT / 'drone.db').as_posix()}"
+
+
+def get_cors_origins(environment: Mapping[str, str] | None = None) -> list[str]:
+    """Return explicit browser origins; credentials must never use wildcard CORS."""
+    values = os.environ if environment is None else environment
+    configured = values.get("CORS_ORIGINS", "").strip()
+    if configured:
+        origins = [item.strip().rstrip("/") for item in configured.split(",") if item.strip()]
+        if "*" in origins:
+            raise RuntimeError("CORS_ORIGINS cannot contain '*' when credentialed sessions are enabled.")
+        return list(dict.fromkeys(origins))
+
+    defaults = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+    ]
+    frontend_base = values.get("FRONTEND_BASE_URL", "").strip()
+    if frontend_base:
+        parsed = urlsplit(frontend_base)
+        if parsed.scheme and parsed.netloc:
+            defaults.insert(0, f"{parsed.scheme}://{parsed.netloc}")
+    return list(dict.fromkeys(defaults))
 
 
 DATABASE_URL = get_database_url()

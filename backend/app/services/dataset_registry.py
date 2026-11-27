@@ -14,15 +14,16 @@ from typing import Any
 import cv2
 import numpy as np
 
-from ..config import PROJECT_ROOT
+from ..config import PROJECT_ROOT, resolve_project_path
 
 logger = logging.getLogger(__name__)
-DEFAULT_DATASET_ROOT = Path(
-    os.environ.get("UAV_VISLOC_DATASET_DIR", PROJECT_ROOT / "UAV_VisLoc_dataset")
-).expanduser().resolve()
-CONSOLIDATED_CSV = (
-    PROJECT_ROOT / "backend/training/uav_visloc/phase1_validation/outputs/"
-    "consolidated_drone_metadata.csv"
+DEFAULT_DATASET_ROOT = resolve_project_path(
+    os.environ.get("UAV_VISLOC_DATASET_DIR"),
+    "UAV_VisLoc_dataset",
+)
+CONSOLIDATED_CSV = resolve_project_path(
+    os.environ.get("UAV_VISLOC_CONSOLIDATED_CSV"),
+    "backend/training/uav_visloc/phase1_validation/outputs/consolidated_drone_metadata.csv",
 )
 _registry_lock = threading.Lock()
 _registry: "DatasetRegistry | None" = None

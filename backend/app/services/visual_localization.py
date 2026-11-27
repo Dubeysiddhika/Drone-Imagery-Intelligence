@@ -20,19 +20,21 @@ import numpy as np
 import psutil
 import torch
 from PIL import Image
+
+from ..config import resolve_project_path
 from pyproj import Transformer
 from rasterio.transform import Affine
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-PHASE3C_DIR = (
-    PROJECT_ROOT
-    / "backend/training/uav_visloc/phase3_pretrained_setup/phase3c"
-).resolve()
-PHASE3H_DIR = (
-    PROJECT_ROOT
-    / "backend/training/uav_visloc/phase3_pretrained_setup/phase3h"
-).resolve()
+PHASE3C_DIR = resolve_project_path(
+    os.environ.get("UAV_VISLOC_PHASE3C_DIR"),
+    "backend/training/uav_visloc/phase3_pretrained_setup/phase3c",
+)
+PHASE3H_DIR = resolve_project_path(
+    os.environ.get("UAV_VISLOC_PHASE3H_DIR"),
+    "backend/training/uav_visloc/phase3_pretrained_setup/phase3h",
+)
 logger = logging.getLogger(__name__)
 _inference_lock = threading.Lock()
 _phase_modules: tuple[Any, Any] | None = None
