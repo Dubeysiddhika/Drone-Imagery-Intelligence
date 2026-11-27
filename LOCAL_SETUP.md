@@ -182,8 +182,11 @@ folders and drone images; it is used for exact-image and visual matching, not
 as a prerequisite for importing the metadata table.
 
 After import, the UAV-VisLoc Dataset page displays all imported records with
-pagination and record details. Coordinates shown there are dataset ground
-truth, not EXIF values extracted from the uploaded JPEG.
+pagination and record details. The importer also retries matching for prior
+uploaded images that were previously marked not matched. Matches are only
+saved after exact-content or visual verification. Coordinates shown on the
+dataset page are dataset ground truth, not EXIF values extracted from the
+uploaded JPEG.
 
 ## 6. Start the application
 

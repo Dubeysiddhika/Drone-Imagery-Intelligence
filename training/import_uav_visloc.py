@@ -23,7 +23,8 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.config import resolve_project_path  # noqa: E402
 from app.models.database import SessionLocal, engine  # noqa: E402
-from app.models.models import UAVVisLocRecord  # noqa: E402
+from app.models.models import DroneImage, UAVVisLocImageMatch, UAVVisLocRecord  # noqa: E402
+from app.services.dataset_registry import identify_dataset_image  # noqa: E402
 
 CONSOLIDATED_CSV = resolve_project_path(
     os.environ.get("UAV_VISLOC_CONSOLIDATED_CSV"),
@@ -194,6 +195,56 @@ def import_records(records: list[dict[str, Any]], *, commit: bool) -> tuple[int,
     return inserted, updated, total
 
 
+
+def rematch_existing_uploads() -> tuple[int, int]:
+    """Re-check prior uploads against the now-loaded dataset and persist verified matches.
+
+    This upgrades older uploads that were marked not_matched before the
+    consolidated metadata CSV was connected. Matching still requires exact
+    SHA-256 or the registry's visual verification; a filename alone never
+    assigns coordinates.
+    """
+    scanned = 0
+    matched = 0
+    with SessionLocal() as session:
+        images = session.query(DroneImage).all()
+        for image in images:
+            image_path = Path(image.filepath)
+            if not image_path.is_file():
+                continue
+
+            current = (
+                session.query(UAVVisLocImageMatch)
+                .filter(UAVVisLocImageMatch.image_id == image.id)
+                .first()
+            )
+            if current is not None and current.status == "matched":
+                continue
+
+            scanned += 1
+            try:
+                result = identify_dataset_image(image_path, image.filename)
+            except Exception:
+                continue
+
+            record = result.get("record") if result.get("status") == "matched" else None
+            if record is None:
+                continue
+
+            if current is None:
+                current = UAVVisLocImageMatch(image_id=image.id)
+                session.add(current)
+            current.status = "matched"
+            current.match_method = result.get("method")
+            current.match_confidence = result.get("confidence")
+            current.flight_sequence = record.get("flight_sequence")
+            current.dataset_relative_path = record.get("dataset_image_path")
+            current.metadata_json = json.dumps(record, separators=(",", ":"), allow_nan=False)
+            matched += 1
+
+        session.commit()
+    return scanned, matched
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Validate/export/import all UAV-VisLoc consolidated metadata rows."
@@ -231,11 +282,15 @@ def main() -> None:
         return
 
     inserted, updated, total = import_records(records, commit=True)
+    scanned_uploads, rematched_uploads = rematch_existing_uploads()
     print("\nUAV-VisLoc metadata import completed.")
     print(f"New database records: {inserted}")
     print(f"Existing records updated: {updated}")
     print(f"Total UAV-VisLoc records in application database: {total}")
+    print(f"Previously uploaded images checked for a dataset match: {scanned_uploads}")
+    print(f"Previously uploaded images newly matched: {rematched_uploads}")
     print("Open the UAV-VisLoc Dataset page to browse all records (25 per page).")
+    print("Refresh the image detail or intelligence view to see any newly verified dataset match.")
 
 
 if __name__ == "__main__":

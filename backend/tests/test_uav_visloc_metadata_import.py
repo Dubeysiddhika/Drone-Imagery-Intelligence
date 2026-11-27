@@ -3,7 +3,15 @@ import importlib.util
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from pathlib import Path
+
+from app.models.database import Base
+from app.models.models import DroneImage, UAVVisLocImageMatch
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 IMPORT_SCRIPT = PROJECT_ROOT / "training" / "import_uav_visloc.py"
@@ -83,6 +91,68 @@ class UAVVisLocMetadataImportTests(unittest.TestCase):
         exported = json.loads(output.read_text(encoding="utf-8"))
         self.assertEqual(len(exported), 1)
         self.assertEqual(exported[0]["satellite_map"], "satellite02.tif")
+
+
+    def test_rematches_existing_upload_and_persists_verified_dataset_metadata(self):
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(engine)
+        sessions = sessionmaker(bind=engine)
+        uploaded_file = Path(self.temporary.name) / "02_0015.JPG"
+        uploaded_file.write_bytes(b"test-image-content")
+
+        with sessions() as session:
+            image = DroneImage(
+                filename="02_0015.JPG",
+                filepath=str(uploaded_file),
+                latitude=None,
+                longitude=None,
+            )
+            session.add(image)
+            session.commit()
+            image_id = image.id
+            session.add(UAVVisLocImageMatch(
+                image_id=image_id,
+                status="not_matched",
+            ))
+            session.commit()
+
+        matched_record = {
+            "filename": "02_0015.JPG",
+            "flight_sequence": "02",
+            "dataset_image_path": "02/drone/02_0015.JPG",
+            "ground_truth": {
+                "available": True,
+                "latitude": 29.78959564,
+                "longitude": 116.0406953,
+                "coordinate_source": "uav_visloc_dataset_ground_truth",
+            },
+        }
+        with (
+            patch.object(importer, "SessionLocal", sessions),
+            patch.object(importer, "identify_dataset_image", return_value={
+                "status": "matched",
+                "method": "exact_filename_and_sha256",
+                "confidence": 1.0,
+                "record": matched_record,
+            }),
+        ):
+            scanned, matched = importer.rematch_existing_uploads()
+
+        self.assertEqual(scanned, 1)
+        self.assertEqual(matched, 1)
+        with sessions() as session:
+            saved = session.query(UAVVisLocImageMatch).filter_by(image_id=image_id).one()
+            self.assertEqual(saved.status, "matched")
+            self.assertEqual(saved.match_method, "exact_filename_and_sha256")
+            self.assertEqual(saved.flight_sequence, "02")
+            self.assertEqual(saved.dataset_relative_path, "02/drone/02_0015.JPG")
+            metadata = json.loads(saved.metadata_json)
+            self.assertEqual(metadata["ground_truth"]["latitude"], 29.78959564)
+        engine.dispose()
 
     def test_rejects_invalid_coordinates_before_import(self):
         self.write_rows([{
